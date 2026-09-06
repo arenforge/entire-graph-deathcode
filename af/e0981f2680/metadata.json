@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "afe0981f2680",
+  "strategy": "manual-commit",
+  "branch": "buildathon/main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/buildathon/evidence/04-before-curveball.txt"
+  ],
+  "sessions": [
+    {
+      "metadata": "/af/e0981f2680/0/metadata.json",
+      "transcript": "/af/e0981f2680/0/full.jsonl",
+      "compact_transcript": "/af/e0981f2680/0/transcript.jsonl",
+      "content_hash": "/af/e0981f2680/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 66,
+    "cache_creation_tokens": 106723,
+    "cache_read_tokens": 2569716,
+    "output_tokens": 30372,
+    "api_call_count": 33
+  }
+}
