@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>graph simulate — Buildathon submission</title>
+<style>
+  @page { size: A4; margin: 16mm 15mm 18mm 15mm; }
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body { font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+         font-size: 9.6pt; line-height: 1.5; color: #14171a; margin: 0; }
+  h1 { font-size: 19pt; margin: 0 0 2mm; letter-spacing: -.4pt; line-height: 1.15; }
+  h2 { font-size: 11.5pt; margin: 7mm 0 2mm; padding-bottom: 1.2mm;
+       border-bottom: 1.6pt solid #14171a; letter-spacing: -.2pt;
+       break-after: avoid; page-break-after: avoid; }
+  h3 { font-size: 9.9pt; margin: 4.5mm 0 1.5mm; break-after: avoid; page-break-after: avoid; }
+  p, li { margin: 0 0 2mm; }
+  ul, ol { margin: 0 0 2.5mm; padding-left: 5.5mm; }
+  li { margin-bottom: 1.1mm; }
+  code { font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 8.4pt;
+         background: #f1f3f5; padding: .3mm 1mm; border-radius: 1.4mm; }
+  pre { font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 7.9pt;
+        line-height: 1.42; background: #f7f8fa; border: .3pt solid #dfe3e8;
+        border-left: 2pt solid #495057; border-radius: 1.4mm;
+        padding: 2.4mm 3mm; margin: 0 0 3mm; white-space: pre-wrap;
+        word-break: break-word; break-inside: avoid; page-break-inside: avoid; }
+  pre code { background: none; padding: 0; font-size: inherit; }
+  table { border-collapse: collapse; width: 100%; margin: 0 0 3mm; font-size: 8.6pt;
+          break-inside: avoid; page-break-inside: avoid; }
+  th, td { border: .3pt solid #cfd4da; padding: 1.3mm 2mm; text-align: left;
+           vertical-align: top; }
+  th { background: #eef0f3; font-weight: 600; }
+  td.num { text-align: right; font-family: "SF Mono", Menlo, monospace; white-space: nowrap; }
+  .lede { font-size: 10.4pt; color: #33383d; margin: 0 0 4mm; }
+  .meta { background: #f7f8fa; border: .3pt solid #dfe3e8; border-radius: 1.6mm;
+          padding: 2.6mm 3mm; margin: 0 0 5mm; font-size: 8.5pt; }
+  .meta div { margin-bottom: .9mm; }
+  .meta b { display: inline-block; min-width: 31mm; color: #5b6167; font-weight: 600; }
+  .meta code { background: none; padding: 0; }
+  .box { border: .3pt solid #cfd4da; border-left: 2.4pt solid #14171a;
+         background: #fafbfc; padding: 2.6mm 3mm; margin: 0 0 3.5mm;
+         break-inside: avoid; page-break-inside: avoid; }
+  .box p:last-child, .box ul:last-child, .box ol:last-child { margin-bottom: 0; }
+  .box h3 { margin-top: 0; }
+  .kicker { font-size: 7.4pt; text-transform: uppercase; letter-spacing: .9pt;
+            color: #6b7178; font-weight: 700; margin: 0 0 1.2mm; }
+  .avoid { break-inside: avoid; page-break-inside: avoid; }
+  .pb { break-before: page; page-break-before: always; }
+  footer { margin-top: 7mm; padding-top: 2mm; border-top: .3pt solid #dfe3e8;
+           font-size: 7.6pt; color: #6b7178; }
+  strong { font-weight: 600; }
+</style></head><body>
+
+<h1>graph simulate</h1>
+<p class="lede">Coverage-aware change simulation you are allowed to distrust.</p>
+
+<div class="meta">
+  <div><b>Track</b> Track 2 — Build with Graph Intelligence</div>
+  <div><b>Command added</b> <code>entire graph simulate</code></div>
+  <div><b>Entire mirror</b> <code>entire://aws-ap-south-1.entire.io/gh/arenforge/entire-graph-deathcode</code></div>
+  <div><b>Mirror ID</b> <code>01M1TM59AMZQ38B7TCC4BFP25A</code></div>
+  <div><b>GitHub fork</b> <code>https://github.com/arenforge/entire-graph-deathcode</code></div>
+  <div><b>Branch</b> <code>buildathon/main</code></div>
+  <div><b>Final commit</b> <code>492c3a84fa17330ac8099ae3167ad0615863be9c</code></div>
+  <div><b>Databricks</b> Not applicable — this team did not opt in to that award category</div>
+</div>
+
+<h2>One-sentence summary</h2>
+<p><code>entire graph simulate</code> takes the blast radius <code>impact</code> already computes and answers the question it leaves open — <em>of everything my change can reach, which parts does a test actually guard?</em> — labelling every claim with the strength of the evidence behind it, and handing back a command for every claim it cannot prove.</p>
+
+<h2>Problem, intended user, and why it matters</h2>
+<p>The user is a developer about to change a function, or a reviewer reading a change an agent wrote. Two questions decide whether it is safe to merge: <strong>what else depends on this</strong>, and <strong>would anything catch me if I got it wrong?</strong></p>
+<p>This repository already answered the first. <code>entire graph impact</code> reports callers, callees, type consumers and data flows for any symbol. Nothing answered the second — and the pieces were sitting right next to each other:</p>
+<ul>
+  <li><code>internal/sem/search_covertest.go</code> implements a tiered covering-test resolver, but it is wired only into <code>search</code>, returns exactly <strong>one</strong> test, and only for the <strong>top hit</strong>.</li>
+  <li><code>internal/cli/impact.go</code> has <strong>zero</strong> mentions of <code>TESTS</code>. The blast-radius command has no notion of coverage at all.</li>
+</ul>
+<p>So the tool could say "here is one test for one symbol" and "here is everything that depends on one symbol", and nothing composed them. A blast radius of twelve symbols arrived with no indication of which six were unguarded. That composition is this command.</p>
+
+<h2>Why Entire Graph is essential</h2>
+<p>The product cannot exist without the graph. Mapping a symbol to its transitive callers, then those callers to the test functions that reach them, is a call-graph query, not a text query. Entire Graph supplies it locally, with no model calls, and returns <code>file:line</code> for every node — which is what makes the verdict <em>auditable</em> rather than advisory.</p>
+<p>The graph also chose the feature. We did not guess at a gap; we found it with <code>entire graph search</code> and confirmed it by opening every cited line.</p>
+
+<h2>Architecture</h2>
+<pre><code>--symbol NAME | &lt;file&gt;:&lt;line&gt;
+      |
+      v  shared focus resolver (ambiguity answered exactly as impact answers it)
+parseImpactFlags                          internal/cli/simulate.go:348
+      |
+      v  ONE snapshot load, no network
+sem.LoadOrBuildProviderSnapshot           internal/cli/simulate.go:305
+      |
+      +--> blast radius, REUSED not recomputed
+      |    buildImpactResponseFromReader  internal/cli/impact.go:330
+      |
+      +--> coverage index, built once per run (not once per symbol)
+      |    newSimulateCoverageIndex       internal/cli/simulate.go:584
+      |
+      v  correlate, tier by resolution strength, classify
+buildSimulateResponse                     internal/cli/simulate.go:360
+      |
+      v
+AFFECTED / TESTS / BREAKING / UNCOVERED / VERIFY / RISK   (text | json)
+writeSimulateText                         internal/cli/simulate.go:939</code></pre>
+
+<table>
+<tr><th>File</th><th>Role</th></tr>
+<tr><td><code>internal/cli/simulate.go</code></td><td>The whole command</td></tr>
+<tr><td><code>internal/cli/simulate_test.go</code></td><td>17 tests, including the dynamic-dispatch fixture</td></tr>
+<tr><td><code>internal/cli/root.go:104</code></td><td><code>case "simulate":</code></td></tr>
+<tr><td><code>internal/cli/help.go:207</code></td><td>Help entry</td></tr>
+<tr><td><code>internal/cli/completeness.go</code></td><td>Reused for partial-analysis reporting, <em>not modified</em></td></tr>
+<tr><td><code>docs/buildathon/evidence/</code></td><td>Captured runs</td></tr>
+</table>
+
+<div class="box">
+<p class="kicker">Two load-bearing reuse decisions</p>
+<p><strong>The blast radius is <code>impact</code>'s, unchanged.</strong> If <code>simulate</code> recomputed it, the two commands could disagree about what "affected" means, and a developer who ran both would have no way to know which to believe.</p>
+<p><strong>Partial-analysis reporting is <code>completeness.go</code>'s, unchanged.</strong> <code>impact</code> already builds a query-scoped completeness view and renders it. Rather than write a second one, <code>simulate</code> now carries the same scope and calls the same writer.</p>
+</div>
+
+<h2>What the command reports</h2>
+<p>Six blocks — <code>AFFECTED</code>, <code>TESTS</code>, <code>BREAKING</code>, <code>UNCOVERED</code>, <code>VERIFY</code>, <code>RISK</code> — every line carrying <code>file:line</code> and the strength of the evidence behind it. Text and JSON.</p>
+<p>Coverage is reported in <strong>three states, never as a certainty</strong>:</p>
+<table>
+<tr><th>State</th><th>Meaning</th><th>Tier printed</th></tr>
+<tr><td><code>confirmed</code></td><td>The provider traced the call — resolution <code>exact</code>, <code>import_resolved</code> or <code>package</code></td><td><code>edge</code></td></tr>
+<tr><td><code>heuristic</code></td><td>The edge exists but was drawn by matching a name, a pattern, or an inferred receiver type. Real evidence; <em>not</em> proof of execution</td><td><code>edge-heuristic</code>, <code>mirror</code></td></tr>
+<tr><td><code>unresolved</code></td><td>No test was <em>resolved</em>. Not the same claim as "no test exists"</td><td>—</td></tr>
+</table>
+<p>Every claim that is not confirmed appears under <code>VERIFY</code> with the command that settles it. <code>ANALYSIS MAY BE PARTIAL</code> fires when any input was incomplete and names each reason; JSON exposes <code>analysis_partial</code> plus <code>partial_reasons</code>, so a merge gate can act without parsing text.</p>
+<p><code>RISK</code> is a four-level verdict (<code>NONE</code>/<code>LOW</code>/<code>MEDIUM</code>/<code>HIGH</code>) <strong>recomputable by hand from the two printed counts</strong>. No scores, no confidence percentages.</p>
+
+<h2 class="pb">Noon curveball: the graph is evidence, not an oracle</h2>
+
+<h3>The assumption it invalidated</h3>
+<p><code>simulate</code> treated the graph as a <strong>closed world</strong>: an absent relation was read as a negative fact about the code, and any present relation as proof of execution. Both halves lived in one function — <code>len(entry.Tests) == 0</code> became the affirmative claim "has no covering test" and drove the <code>RISK</code> verdict, while any inbound edge from a test file was stamped tier <code>edge</code>, documented as <em>"the graph proved a test actually runs this code"</em>.</p>
+<p>Dynamic dispatch, reflection and generated code produce exactly the two states that assumption has no room for: a real test whose path the resolver cannot follow, and an edge drawn only because one name happened to match.</p>
+
+<h3>We ran the graph on our own code before editing any of it</h3>
+<p><code>impact</code> and <code>simulate</code> on all eight of our graph-evidence consumers, saved to <code>evidence/04-before-curveball.txt</code> (689 lines), captured at <code>df3bf1b</code> with nothing under <code>internal/</code> modified. It found four defects — each <strong>measured, not asserted</strong>:</p>
+<ol>
+  <li>All <strong>9</strong> <code>TESTS</code> edges in this repository are resolved <code>name_only</code> (8) or <code>package</code> (1). <strong>Zero are <code>exact</code>.</strong> We were labelling those "proven execution".</li>
+  <li><code>impact</code> printed <code>Completeness: degraded for Go (...)</code> on all 8 runs; <code>simulate</code> printed it <strong>0 times</strong> on the identical snapshot. The diagnostics were plumbed into our response object and never read — so a snapshot the provider itself flags as degraded produced a bare <code>RISK HIGH</code>.</li>
+  <li><code>collectSimulateAffected</code> read <code>section.Entries</code> and never <code>section.Total</code>, so a capped blast radius silently shrank the risk denominator while the header stated it as fact.</li>
+  <li><code>impact</code>'s own <code>doc-mention, name_only</code> label was dropped, promoting a lexical mention in a prose file to a fully affected symbol.</li>
+</ol>
+
+<h3>The fix</h3>
+<ul>
+  <li><strong>Evidence is tiered by the provider's own <code>Resolution</code></strong>, not by relation type. The partition is read off the provider's <code>Reason</code> strings and documented at <code>simulateConfirmedResolution</code>. An <em>unknown</em> resolution degrades toward verification, never toward proof.</li>
+  <li><strong>Three coverage states</strong> in text and JSON. <code>unresolved</code> is never called "no test exists".</li>
+  <li><strong>Partial analysis is rendered</strong>, reusing <code>writeScopedCompletenessBlock</code> and <code>completenessScopeOrAll</code> unchanged, plus an <code>ANALYSIS MAY BE PARTIAL</code> block naming every reason and an <code>analysis_partial</code> boolean for gates.</li>
+  <li><strong>Truncation surfaced</strong>: <code>affected_omitted_total</code>, and the header states the totals are a lower bound.</li>
+  <li><strong>A <code>VERIFY</code> section</strong>: the one test to run for a heuristic claim, <code>neighbors --direction in</code> for an unresolved one. The Go <code>-run</code> form is emitted only for Go test files — for other languages the runner is <em>not guessed</em>.</li>
+  <li><strong><code>format_version</code> 1 &rarr; 2.</strong> <code>evidence</code> gained a third value, which is a compatibility break for a consumer switching exhaustively on the v1 tiers.</li>
+</ul>
+
+<div class="box">
+<p class="kicker">Requirement 4 — what did not change, pinned by test</p>
+<p>For a symbol whose test edge is resolved: tier still <code>edge</code>, verdict <code>confirmed</code>, identical covered/uncovered classification, <code>RISK</code> thresholds untouched. In this repository that is <strong>1292 of 1405</strong> covered symbols. The defect affected the other <strong>113</strong>. The live run on <code>buildImpactResponseFromReader</code> is unchanged at 12 affected / 6 covered / 6 uncovered / 1 cross-module / <code>RISK HIGH</code>.</p>
+</div>
+
+<h2>The fixture: proof the tool is honest</h2>
+<p>A repository where <code>Gateway</code> has <strong>two</strong> implementations, so no unique implementing method exists and the interface call cannot be resolved; <code>Charge</code> is not globally unique either, so the name-matching fallback cannot fire. The hop is <em>genuinely</em> unresolvable, not unresolved by luck.</p>
+<pre><code>func Checkout(g Gateway, cents int) error { return g.Charge(cents) }   // &lt;- the blind spot
+
+func TestCheckoutWithStripe(t *testing.T) {
+        Checkout(Stripe{}, 100)      // really does execute chargeViaStripe
+}</code></pre>
+<p><strong>Ground truth, measured by Go's own coverage tool:</strong></p>
+<pre><code>$ go test ./... -run TestCheckoutWithStripe -coverprofile=cov.out
+$ go tool cover -func=cov.out
+
+fixture/payments.go:15:  chargeViaStripe  100.0%</code></pre>
+<p><code>chargeViaStripe</code> is <strong>100% covered</strong>, and the graph cannot see it. The old output said <em>"no covering test"</em> — which was <strong>false</strong>. The new output:</p>
+<pre><code>UNCOVERED  2 affected symbols have no test the graph could resolve
+           (that is an absence of resolved evidence, not proof no test exists)
+
+VERIFY     2 claims are not confirmed structural evidence
+  chargeViaStripe   payments.go:15   no test the graph could resolve
+      $ entire graph neighbors --repo . --symbol chargeViaStripe --relation CALLS --direction in
+
+ANALYSIS MAY BE PARTIAL - this verdict rests on incomplete evidence:
+  - 2 symbols have no test the graph could resolve, which is not proof no test exists</code></pre>
+<p>Both states — the blind spot and the fully resolved case in the same repository — are asserted in <code>TestSimulateOnUnresolvableDynamicDispatchFixture</code>.</p>
+
+<h2 class="pb">Setup, run and test</h2>
+<pre><code>git clone entire://aws-ap-south-1.entire.io/gh/arenforge/entire-graph-deathcode
+cd entire-graph-deathcode && git checkout buildathon/main
+go build -o entire-graph ./cmd/entire-graph
+
+# --head AND --cache-dir are both required for the index cache to hit:
+# 22.0s on the first run, 0.637s on every run after.
+./entire-graph simulate --repo . --symbol buildImpactResponseFromReader \
+    --head --cache-dir .cache/graph
+
+# machine output, for the merge-gate story
+./entire-graph simulate --repo . --symbol buildImpactResponseFromReader \
+    --head --cache-dir .cache/graph --format json | jq '{analysis_partial, partial_reasons, verify}'
+
+# tests (the env vars keep fixtures from inheriting global git config)
+GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null go test -timeout 40m ./...</code></pre>
+<p>Toolchain: Go 1.26, Git &ge; 2.36, Entire CLI &ge; 0.10.0, Entire Graph v0.4.0.</p>
+
+<h2>Verification</h2>
+<table>
+<tr><th>Check</th><th>Result</th></tr>
+<tr><td><code>go build ./...</code></td><td>clean</td></tr>
+<tr><td><code>gofmt -l ./cmd ./internal</code></td><td>clean</td></tr>
+<tr><td><code>go vet ./internal/cli/</code></td><td>clean</td></tr>
+<tr><td><code>go test -timeout 40m ./...</code></td><td><strong>ok, all 8 packages, exit 0</strong></td></tr>
+<tr><td>Tests in <code>simulate_test.go</code></td><td>6 &rarr; <strong>17</strong></td></tr>
+</table>
+<p>The full suite passing is new — it had never been run on this branch. Doing so surfaced a <strong>real pre-existing bug</strong>: <code>simulate</code> was in <code>root.go</code>'s dispatch switch and <code>help.go</code>'s registry but missing from the <code>dispatchCommands</code> mirror list in <code>help_test.go</code>, so <code>TestRegistryMatchesDispatch</code> had been failing since the command was first added. Fixed, one line.</p>
+
+<h2>Evidence artifacts</h2>
+<table>
+<tr><th>#</th><th>Requirement</th><th>Artifact</th></tr>
+<tr><td>1</td><td>Graph search / definition lookup</td><td><code>01-graph-search.txt</code></td></tr>
+<tr><td>2</td><td>Impact analysis before a high-risk change</td><td><code>02-impact-pre-change.txt</code></td></tr>
+<tr><td>3</td><td>The command running on real code</td><td><code>03-simulate-run.txt</code></td></tr>
+<tr><td>4</td><td><strong>Graph analysis before the curveball edit</strong></td><td><code>04-before-curveball.txt</code> (689 lines)</td></tr>
+<tr><td>5</td><td>Final semantic diff of the submission</td><td><code>05-final-semantic-diff.txt</code></td></tr>
+<tr><td>6</td><td>The incomplete-analysis fixture + ground truth</td><td><code>06-curveball-fixture.txt</code></td></tr>
+</table>
+<p>All under <code>docs/buildathon/evidence/</code>. Full write-up: <code>BUILDATHON.md</code>. Plain-language brief: <code>docs/buildathon/TEAM-BRIEF.md</code>.</p>
+
+<h2>Checkpoints and what each proves</h2>
+<table>
+<tr><th>Milestone</th><th>Commit</th><th>What it proves</th></tr>
+<tr><td>Initial understanding and architecture</td><td><code>651d2a0</code></td><td>The gap was found with the graph and confirmed against source; rejected alternatives recorded with reasons</td></tr>
+<tr><td>Cross-module blast radius</td><td><code>b9dbba6</code></td><td>Last stable state before the curveball, with open risks listed</td></tr>
+<tr><td>Found by running it</td><td><code>dca1066</code></td><td><code>"tests": []</code> vs <code>null</code> are different claims; caught by a teammate's real run</td></tr>
+<tr><td>Plain-language handover</td><td><code>df3bf1b</code></td><td>Three people can present work they did not personally write</td></tr>
+<tr><td><strong>Curveball response</strong></td><td><code>d4ea3f5</code></td><td>Graph analysis captured <em>before</em> the edit; closed-world assumption removed; fixture with measured ground truth</td></tr>
+<tr><td>Final evidence + demo fix</td><td><code>881db89</code>, <code>492c3a8</code></td><td>Semantic diff captured; cache-flag defect found by running it</td></tr>
+</table>
+
+<h2>Design decisions we deliberately rejected</h2>
+<table>
+<tr><th>Rejected</th><th>Why</th></tr>
+<tr><td>A score like "Risk 8.9/10" or "Confidence 94%"</td><td>No calibrated basis for a decimal. This repo's own README spends ~40 lines retracting over-precise benchmark figures.</td></tr>
+<tr><td>An LLM in the decision path</td><td>The provider "makes no network requests, model calls, or API-key lookups". Adding one would contradict the product we are extending. All correlation is deterministic.</td></tr>
+<tr><td>Callees in the affected set</td><td>Changing a function does not break the functions it calls.</td></tr>
+<tr><td>Co-changes and siblings</td><td>Correlations, not dependencies. A coverage gap reported against something a change cannot break is a false alarm — and one false alarm ends a reviewer's trust in the whole report.</td></tr>
+<tr><td>Leading with blast radius / affected modules</td><td><code>impact</code> already ships those. A reskin is not a new capability.</td></tr>
+<tr><td>Deployment checklists, suggested reviewers</td><td>Neither is derivable from a call graph. Listed as next steps rather than invented.</td></tr>
+<tr><td>Mirror-tier credit from filename adjacency alone</td><td>The test must also <em>name</em> the anchor, or every test in <code>foo_test.go</code> would "cover" every symbol in <code>foo.go</code> — exactly the unearned coverage claim this command exists to expose.</td></tr>
+</table>
+
+<h2>Known limitations</h2>
+<ol>
+  <li><strong>"Confirmed" means a test <em>reaches</em> the symbol, not that it <em>asserts the behaviour</em> you are changing.</strong> That is the honest ceiling of the whole approach.</li>
+  <li><code>TESTS</code> is a heuristic relation type here, and all 9 in this repo are resolved by name. The command prints this itself, on every run.</li>
+  <li><strong>"Unresolved" cannot distinguish "no test" from "a test we cannot see."</strong> We report the ambiguity rather than resolve it; that is what <code>VERIFY</code> is for. A future version could run the cited tests under coverage and close the loop.</li>
+  <li>The confirmed/heuristic partition is a judgement, though every value in it is read off the provider's own reason strings. <code>package</code> counts as confirmed (<em>"direct call expression resolved to same-package symbol"</em>); <code>type_inferred</code> does not. Pinned by <code>TestSimulateConfirmedResolutionPartition</code> — that is where to argue about it.</li>
+  <li>Verified on this repository plus a Go fixture. Stem matching is unit-tested against TS/Python/Ruby naming and the resolution partition is language-independent, but neither has run on a real project in those languages.</li>
+  <li>The <code>go test -run</code> verification command is emitted for Go only; for other languages we print "open this file" rather than guess a test runner.</li>
+  <li>Cold index is ~22s, and the cache only hits with <strong>both</strong> <code>--head</code> and <code>--cache-dir</code>.</li>
+  <li>Symbols at the repository root report module <code>""</code>, so a root-level fixture prints "across 0 modules". Cosmetic, pre-existing, untouched here because changing the module grouping would change <code>BREAKING</code>.</li>
+</ol>
+
+<footer>
+Bengaluru Tech Week Buildathon &middot; Track 2 — Build with Graph Intelligence &middot;
+branch <code>buildathon/main</code> &middot; commit <code>492c3a8</code> &middot;
+no network calls, no model calls in the analysis path
+</footer>
+</body></html>
