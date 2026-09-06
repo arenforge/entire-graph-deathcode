@@ -1,0 +1,46 @@
+Index: cache-miss (21189ms) | Query: 8ms | Total: 21197ms
+Completeness: degraded for Go (0 of 417 Go files failed to parse; 7 total diagnostics in this snapshot)
+- warning W_DATA_FLOW_EVIDENCE_UNMERGED
+- plus 5 diagnostics in other languages (C++ 5), which cannot affect this answer
+Impact: buildImpactResponseFromReader (internal/cli/impact.go:330) def=330 span=330-589 [function]
+Blast radius: 15 callers (3 direct, 12 transitive), 19 callees, 8 type consumers, 6 data flows, 0 co-change files, 1 sibling.
+Callers (3 direct, 12 transitive; who breaks if behavior changes):
+- runImpact (internal/cli/impact.go:156, def :124)
+- buildImpactResponseOnDisk (internal/cli/linereader_ondisk_test.go:24, def :23)
+- runSimulate (internal/cli/simulate.go:159, def :120)
+- TestImpactExcludesDocMentionsFromTransitiveExpansion (internal/cli/impact_doc_mention_test.go:63, def :61) [via buildImpactResponseOnDisk]
+- TestImpactRanksDocMentionsLastAndLabelsThem (internal/cli/impact_doc_mention_test.go:95, def :93) [via buildImpactResponseOnDisk]
+- TestImpactDocMentionsDoNotCrowdOutRealCallersUnderLimit (internal/cli/impact_doc_mention_test.go:159, def :130) [via buildImpactResponseOnDisk]
+- TestImpactBuildsAllSectionsFromSnapshot (internal/cli/impact_test.go:46, def :44) [via buildImpactResponseOnDisk]
+- TestImpactDepthOneSkipsTransitiveCallers (internal/cli/impact_test.go:96, def :94) [via buildImpactResponseOnDisk]
+- ... +7 more (use --format json for the full list)
+Callees (19; what it depends on):
+- sort.Slice
+- callEvidenceSpan (internal/cli/callsite.go:261)
+- callTokenFromDetail (internal/cli/callsite.go:274)
+- buildCompletenessScope (internal/cli/completeness.go:60)
+- impactCallRelation (internal/cli/impact.go:299)
+- impactTypeRelation (internal/cli/impact.go:303)
+- impactNonCodeMention (internal/cli/impact.go:320)
+- impactSectionOf (internal/cli/impact.go:626)
+- ... +11 more (use --format json for the full list)
+Type consumers (0 in, 8 out; USES_TYPE/PARAM_TYPE/RETURNS_TYPE):
+- -> lineReader (internal/cli/callsite.go:85) [PARAM_TYPE]
+- -> lineReader (internal/cli/callsite.go:85) [USES_TYPE]
+- -> impactFlags (internal/cli/impact.go:26) [PARAM_TYPE]
+- -> impactFlags (internal/cli/impact.go:26) [USES_TYPE]
+- -> impactResponse (internal/cli/impact.go:81) [RETURNS_TYPE]
+- -> impactResponse (internal/cli/impact.go:81) [USES_TYPE]
+- -> ProviderSnapshot (internal/sem/provider.go:417) [PARAM_TYPE]
+- -> ProviderSnapshot (internal/sem/provider.go:417) [USES_TYPE]
+Data flows (1 in, 5 out):
+- -> impactSectionOf (internal/cli/impact.go:626)
+- -> buildImpactResponseOnDisk (internal/cli/linereader_ondisk_test.go:23)
+- -> snapshotFilePaths (internal/cli/symbolref.go:139)
+- -> resolveFocusSymbolsOrFuzzy (internal/cli/symbolref.go:482)
+- -> symbolMatchBodiesFromReader (internal/cli/symbolref.go:630)
+- <- symbolMatchBodiesFromReader (internal/cli/symbolref.go:630)
+Co-change coupling (0; files that historically change with internal/cli/impact.go):
+- none
+Same-container siblings (1):
+- callerNode (internal/cli/impact.go:515) [member]

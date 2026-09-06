@@ -1,0 +1,91 @@
+LOW CONFIDENCE: top score 37.5 and ranks 1 and 2 are tied (0.0100 apart) - the ranking did not choose. This repo may not contain what you asked for; verify before editing.
+1. internal/sem/dependents.go:40-76 [contains ranks 1,4 - contiguous, nothing elided] score=37.5120 symbol=addDependentCountsWithProgress kind=function focus=40 signals=path,body,symbol-name,signature,graph:callers,complete-symbol,contiguous-span
+func addDependentCountsWithProgress(ctx context.Context, repo, head string, result *Result, options dependentsScanOptions) error {
+	names := changedReferenceNames(*result)
+	if len(names) == 0 {
+		if options.progress != nil {
+			options.progress(0, 0, "")
+		}
+		return nil
+	}
+
+	index, warnings, err := buildReferenceIndexWithProgress(ctx, repo, head, names, options)
+	if err != nil {
+		return err
+	}
+	result.Warnings = append(result.Warnings, warnings...)
+
+	for fileIndex := range result.Files {
+		for changeIndex := range result.Files[fileIndex].Changes {
+			change := &result.Files[fileIndex].Changes[changeIndex]
+			name := referenceName(*change)
+			change.DependentsCount = len(index[name])
+		}
+	}
+	return nil
+}
+
+func changedReferenceNames(result Result) map[string]struct{} {
+	out := map[string]struct{}{}
+	for _, file := range result.Files {
+		for _, change := range file.Changes {
+			name := referenceName(change)
+			if name != "" {
+				out[name] = struct{}{}
+			}
+		}
+	}
+	return out
+}
+
+2. internal/sem/analyze.go:72-77 score=37.5020 symbol=AnalyzeGitRangeWithOptions span=72-774 (703L, body elided - read 72-774 for the rest) kind=function focus=72 signals=graph:calls,graph:incoming,graph:callers
+func AnalyzeGitRangeWithOptions(ctx context.Context, repo, base, head string, paths []string, options AnalyzeOptions) (Result, error) {
+	if err := EnsureGitMetadataSafeForSubprocess(repo); err != nil {
+		return Result{}, err
+	}
+	started := time.Now()
+	var deadline time.Time
+
+3. internal/cli/root.go:1123-1141 score=33.7518 symbol=analyzeAndPrint kind=function focus=1136 signals=body,symbol-usage,complete-symbol
+func analyzeAndPrint(ctx context.Context, opts Options, repo, base, head string, paths []string, flags commonFlags) error {
+	maxSeconds := flags.MaxSeconds
+	if maxSeconds < 0 {
+		maxSeconds = defaultMaxSeconds
+	}
+	analyzeOptions := sem.AnalyzeOptions{
+		MaxDuration: time.Duration(maxSeconds) * time.Second,
+	}
+	if flags.Progress {
+		analyzeOptions.Progress = func(event sem.AnalyzeProgressEvent) {
+			fmt.Fprintln(opts.Stderr, diffProgressLine(event))
+		}
+	}
+	result, err := sem.AnalyzeGitRangeWithOptions(ctx, repo, base, head, paths, analyzeOptions)
+	if err != nil {
+		return err
+	}
+	return printResult(opts.Stdout, result, flags.JSON, opts.Version)
+}
+
+4. internal/sem/search_enclosure.go:833 countBudgetTruncatedResults  [body: def countBudgetTruncatedResults]
+5. internal/sem/analyze.go:28 AnalyzeGitRange  [body: def AnalyzeGitRange]
+6. internal/sem/search.go:1272 searchRepository  [body: def searchRepository]
+7. internal/sem/parser.go:1598 swiftComputedStringPropertyHasRecoverableBody  [body: def swiftComputedStringPropertyHasRecoverableBody]
+COVERING TEST (what hit 1 is supposed to do; not a fix site):
+11. internal/sem/dependents_test.go:633-634 symbol=TestAddDependentCountsBudgetExpiredWarnsAndKeepsResult kind=function focus=633 signals=related:covering-test
+		t.Fatalf("dependents count under expired budget = %d, want 0", got)
+	}
+
+VERIFY: go test ./internal/sem -run '^TestAddDependentCountsBudgetExpiredWarnsAndKeepsResult$'
+  targets internal/sem/dependents_test.go (from go.mod module root + covering test name) tier=narrow
+  run it ONCE after editing; if it fails, fix the code and re-run THIS command.
+  do not build an alternative test harness, hand-assemble a classpath, or re-verify by
+  reverting and reapplying the edit.
+SAME-CONCEPT LITERAL "addDependentCountsWithProgress" — 4 in 3 files repo-wide:
+  internal/sem/analyze.go:762 AnalyzeGitRangeWithOptions CONSUMER
+  internal/sem/dependents.go:37 addDependentCounts CONSUMER
+  internal/sem/dependents_test.go:613 TestAddDependentCountsBudgetExpiredWarnsAndKeepsResult CONSUMER
+RELATED SITES (the same change usually also lands here):
+8. internal/cli/root.go:927 symbol=runDiff (caller)
+9. internal/cli/root.go:765 symbol=runCommit (caller)
+10. internal/sem/search.go:692 symbol=searchRepository (caller)

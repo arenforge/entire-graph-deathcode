@@ -1,0 +1,19 @@
+Change simulation: impactCallRelation  internal/cli/impact.go:299
+Index: cache-miss
+
+AFFECTED   6 symbols across 1 module(s)
+  internal/cli
+
+TESTS      1 of 6 affected symbols have a covering test
+  internal/cli/linereader_ondisk_test.go:23 edge     buildImpactResponseOnDisk -> buildImpactResponseFromReader
+
+UNCOVERED  5 affected symbols have no covering test
+  impactCallRelation             internal/cli/impact.go:299  <- the symbol you are changing
+  simulateCoverageRelation       internal/cli/simulate.go:333
+  runImpact                      internal/cli/impact.go:124
+  runSimulate                    internal/cli/simulate.go:120
+  newSimulateCoverageIndex       internal/cli/simulate.go:305
+
+RISK  HIGH - 5 of 6 affected symbols have no covering test (>= 5 uncovered)
+Note: TESTS is a heuristic relation in this provider. Open the
+cited lines before gating a merge on this verdict.

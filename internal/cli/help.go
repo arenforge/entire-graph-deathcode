@@ -204,6 +204,28 @@ var commandDocs = []commandDoc{
 		examples: []string{"entire graph impact --repo . --symbol WriteText"},
 	},
 	{
+		name:    "simulate",
+		group:   groupInspect,
+		summary: "Coverage-aware change simulation: what breaks, and what will catch it",
+		usage:   []string{"entire graph simulate --symbol NAME|<file>:<line> --repo . [--depth 1|2] [--limit 20] [--format text|json]"},
+		long: "simulate answers the question impact does not: of everything a change to this symbol can reach, which parts does a test actually guard? It takes impact's affected set (callers, type consumers, data flows -- not callees, which a change cannot break) and resolves covering tests per symbol, then reports the UNCOVERED remainder.\n\n" +
+			"Each covering test carries the evidence tier it came from: \"edge\" is a graph-resolved inbound CALLS/TESTS relation from a test file, and \"mirror\" is a test in the anchor's mirror test file that also names the anchor. TESTS is a heuristic relation in this provider, so open the cited lines before gating a merge on the verdict.\n\n" +
+			"RISK is a three-level verdict recomputable from the printed counts, not a score. Ambiguous names return the definition list; disambiguate with --file/--line/--kind.",
+		flags: []flagDoc{
+			{name: "--symbol", arg: "NAME|<file>:<line>", desc: "Symbol you intend to change (required)"},
+			{name: "--repo", arg: "path", desc: "Repository (default: current repo)"},
+			{name: "--file", arg: "path", desc: "Disambiguate an ambiguous name by file"},
+			{name: "--line", arg: "n", desc: "Disambiguate by line"},
+			{name: "--kind", arg: "kind", desc: "Disambiguate by symbol kind"},
+			{name: "--depth", arg: "1|2", def: "2", desc: "Caller-traversal depth"},
+			{name: "--limit", arg: "n", def: "15", desc: "Max affected entries listed (uncovered first); totals are uncapped"},
+			{name: "--format", arg: "text|json", desc: "Output format"},
+			{name: "--head", desc: "Query the committed tree (cached)"},
+			{name: "--profile", arg: "syntax-only|fast|full", def: "full", desc: "Parsing depth"},
+		},
+		examples: []string{"entire graph simulate --repo . --symbol runImpact"},
+	},
+	{
 		name:    "def",
 		group:   groupInspect,
 		summary: "What a name IS: declaration, fields, and method surface",
