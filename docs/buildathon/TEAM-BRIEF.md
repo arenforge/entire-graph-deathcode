@@ -129,11 +129,18 @@ Twelve things in the codebase are touched if you change this function, spread
 across two folders.
 
 ```
-TESTS      6 of 12 affected symbols have a covering test
-  internal/cli/linereader_ondisk_test.go:23 edge  buildImpactResponseOnDisk -> buildImpactResponseFromReader
+TESTS      6 of 12 affected symbols have a resolved covering test
+           5 confirmed by a resolved edge, 1 on heuristic evidence only
+  internal/cli/linereader_ondisk_test.go:23  edge  [package]  buildImpactResponseOnDisk -> buildImpactResponseFromReader
 ```
-Six of the twelve are watched by a test. Each line reads:
-**where the test lives** → **evidence tier** → **test name** → **what it covers**.
+Six of the twelve have a test the graph could resolve. Each line reads:
+**where the test lives** → **evidence tier** → **how the graph resolved it** →
+**test name** → **what it covers**.
+
+The second line is the important one. `edge` means the provider traced the
+call. `edge-heuristic` means the edge exists but was drawn by matching a
+**name**, not by following a call — which is what dynamic dispatch produces.
+Same for `mirror`. So "6 covered" splits into "5 proven, 1 believed".
 
 ```
 BREAKING   1 affected symbol is outside internal/cli (0 uncovered)
@@ -144,25 +151,46 @@ changing. These are the ones you would never notice while reading your own
 diff — someone else's code depends on you.
 
 ```
-UNCOVERED  6 affected symbols have no covering test
+UNCOVERED  6 affected symbols have no test the graph could resolve
+           (that is an absence of resolved evidence, not proof no test exists)
   runImpact                      internal/cli/impact.go:124
   ...
 ```
-**This is the product.** Six affected things have no test watching them. Change
-your function, break these, and nothing catches you. Every line is a real file
-and line number you can open.
+**This is the product.** Six affected things have no test the graph can find.
+Change your function, break these, and probably nothing catches you.
+
+Read the wording carefully, because a judge will. We do **not** say "no test
+exists". If a test reaches this code through an interface, reflection or
+generated code, static analysis cannot see it and we would be lying. We say
+what we actually know: nothing was **resolved**.
 
 ```
-RISK  HIGH - 6 of 12 affected symbols have no covering test (>= 5 uncovered)
+VERIFY     7 claims are not confirmed structural evidence
+  runImpact       internal/cli/impact.go:124   no test the graph could resolve
+      $ entire graph neighbors --repo . --symbol runImpact --relation CALLS --direction in
 ```
-A three-level verdict: NONE / LOW / MEDIUM / HIGH. **Not a made-up score** —
-you can recount it from the two numbers printed above it.
+Every claim we cannot prove ships with the command that settles it. For a
+heuristic claim it is the one test to run; for an unresolved one it is the query
+that shows every inbound edge the graph actually holds, weak ones included.
 
 ```
-Note: TESTS is a heuristic relation in this provider. Open the
-cited lines before gating a merge on this verdict.
+RISK  HIGH - 6 of 12 affected symbols have no resolved covering test (>= 5 uncovered)
+      1 covered symbol rests on heuristic evidence; if none hold, 7 of 12 are unguarded.
 ```
-We print our own limitation on every single run.
+A four-level verdict: NONE / LOW / MEDIUM / HIGH. **Not a made-up score** — you
+can recount it from the two numbers printed above it. The second line is the
+same arithmetic run against the weak evidence: 6 + 1 = 7.
+
+```
+ANALYSIS MAY BE PARTIAL - this verdict rests on incomplete evidence:
+  - snapshot completeness is "degraded", not "ok"
+  - 1 provider warning in scope for this query
+  - 1 of 6 covered symbols rest on heuristic evidence only
+```
+Fires whenever any input to the verdict was incomplete, and **names every
+reason** so you can check the flag against the body of the report. In JSON it
+is `analysis_partial` plus `partial_reasons`, so a merge gate can read it
+without parsing text.
 
 ---
 
@@ -210,8 +238,9 @@ exists to *expose*. So filename adjacency alone is never enough.
 
 | File | What |
 | --- | --- |
-| `internal/cli/simulate.go` | **New.** The whole command (~490 lines, heavily commented) |
-| `internal/cli/simulate_test.go` | **New.** 6 tests |
+| `internal/cli/simulate.go` | **New.** The whole command, heavily commented |
+| `internal/cli/simulate_test.go` | **New.** 17 tests, incl. the dynamic-dispatch fixture |
+| `internal/cli/completeness.go` | **Reused unchanged** for partial-analysis reporting |
 | `internal/cli/root.go` | One line: `case "simulate":` added to the command switch |
 | `internal/cli/help.go` | The help-text entry so `entire graph help` lists it |
 | `BUILDATHON.md` | Submission doc (still has TODOs) |
@@ -228,30 +257,57 @@ exists to *expose*. So filename adjacency alone is never enough.
 | `TestCollectSimulateAffectedMarksCrossModule` | The focus is never flagged as breaking; same-folder callers are not miscounted |
 | `TestSimulateUncoveredSerializesEmptyTestArray` | JSON says `"tests": []`, never `null` |
 
+Added by the curveball response:
+
+| Test | Protects |
+| --- | --- |
+| `TestCoveringTestsWithholdsEdgeTierFromNameOnlyRelations` | A name-matched edge can never be labelled as proven execution |
+| `TestCoveringTestsWithholdsEdgeTierFromHeuristicRelationTypes` | A `TESTS` edge cannot reach the confirmed tier — the relation type is itself heuristic |
+| `TestCoveringTestsKeepsEdgeTierForResolvedRelations` | **Requirement 4**: resolved code still reads exactly as before |
+| `TestSimulateConfirmedResolutionPartition` | The confirmed/heuristic split, incl. that an *unknown* resolution degrades toward verification |
+| `TestSimulateCoverageVerdictThreeStates` | The three states stay distinguishable |
+| `TestSimulateOmittedTotalCountsWhatImpactDidNotList` | A truncated blast radius cannot masquerade as complete |
+| `TestCollectSimulateAffectedCarriesImpactMentionLabel` | `impact`'s doc-mention label is not dropped |
+| `TestSimulateRiskThresholdsDidNotMove` | The risk boundaries did not shift when the wording changed |
+| `TestSimulateOnUnresolvableDynamicDispatchFixture` | **The fixture.** A repo where the graph is genuinely blind, plus the resolved case in the same run |
+
 Run them:
 ```sh
-GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null go test ./internal/cli/ -run Simulate -count=1
+GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null \
+  go test ./internal/cli/ -run 'Simulate|CoveringTests|CollectSimulate' -count=1
 ```
 
 ---
 
 ## 7. Known limitations — say these before a judge finds them
 
-1. **"Covered" means a test *reaches* the code, not that it *checks the
+1. **"Confirmed" means a test *reaches* the code, not that it *checks the
    behaviour* you are changing.** This is the big one. Do not let the demo imply
    the stronger claim.
-2. **The graph has only 9 explicit `TESTS` edges** in this repo, against 22,642
-   `CALLS` edges. So most `edge`-tier evidence is really "a call from inside a
-   test file". That is still direct proof the test runs the code, and we print
-   the relation type on every line — but say it before someone greps for it.
-3. **`TESTS` is a heuristic relation type** in this provider
-   (`internal/sem/provider.go:649`). The tool prints this warning itself.
-4. **Verified on this repository and Go only.** The stem-matching logic is
-   tested against TS/Python/Ruby naming, but we have not run it on a real
-   project in those languages.
-5. **The full test suite has not been run on this branch yet.** We have no green
-   baseline for the pre-existing tests. Must be done before submission.
-6. **Cold start is ~21 seconds.** Warm the cache before demoing.
+2. **The graph has only 9 explicit `TESTS` edges** in this repo, against 19,465
+   `CALLS` edges — and **not one of the 9 is exactly resolved** (8 `name_only`,
+   1 `package`). That is why `edge` is now earned by resolution rather than by
+   relation type. Say this before someone greps for it.
+3. **`TESTS` is a heuristic relation type** in this provider. The tool prints
+   this warning itself, on every run.
+4. **"Unresolved" does not tell you whether a test exists.** It tells you the
+   graph could not find one. We cannot close that gap — that is what `VERIFY`
+   is for.
+5. **The confirmed/heuristic split is a judgement**, even though every value in
+   it is read off the provider's own reason strings. `package` counts as
+   confirmed ("direct call expression resolved to same-package symbol");
+   `type_inferred` does not (the receiver type was inferred). Pinned by
+   `TestSimulateConfirmedResolutionPartition` — that is where to argue about it.
+6. **Verified on this repository plus a Go fixture.** Stem matching is unit-
+   tested against TS/Python/Ruby naming and the resolution partition is
+   language-independent, but neither has run on a real project in those
+   languages.
+7. **The `go test -run` verification command is emitted for Go only.** For other
+   languages we print "open this file" rather than guess a test runner.
+8. **Cold start is ~21 seconds.** Warm the cache before demoing.
+9. **Root-level files report module `""`**, so a fixture at the repo root prints
+   "across 0 modules". Cosmetic and pre-existing; untouched because changing the
+   module grouping would change `BREAKING`.
 
 ---
 
@@ -259,10 +315,29 @@ GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null go test ./internal/cli/ 
 
 | Who | Task |
 | --- | --- |
-| P2 | JSON contract test in `internal/cli/` (assert `format_version`, `affected_total`, `uncovered_total`, `tests_heuristic`) |
+| P2 | JSON contract test (assert `format_version` is 2, plus `affected_total`, `uncovered_total`, `tests_heuristic`, `analysis_partial`, `partial_reasons`, `verify`) |
 | P3 | Implementation order: topological sort of the affected subgraph so it says what to change first |
-| P4 | Finish `BUILDATHON.md` — problem, architecture, graph findings, limitations from §7 |
-| Lead | Full test suite at ~2:10 PM, final semantic diff evidence at ~2:30, submit by 2:50 |
+| P4 | `BUILDATHON.md` is now written — read it and check every claim in it against the code |
+| Lead | Final semantic diff evidence at ~2:30, submit by 2:50 |
+
+**Done since this brief was first written:**
+
+- The noon curveball response (see §9).
+- `BUILDATHON.md` rewritten. It previously described a command called `review`
+  in `internal/cli/review.go` — neither exists. The submission doc was
+  describing a product we did not build.
+- **The full test suite now passes on this branch**, which clears the biggest
+  open risk in the earlier version of this brief. It also caught a real
+  pre-existing bug: `simulate` was registered in `root.go`'s dispatch switch and
+  in `help.go`'s registry, but never added to the `dispatchCommands` mirror list
+  in `help_test.go`, so `TestRegistryMatchesDispatch` had been failing since the
+  command was added. One line, fixed here.
+
+```sh
+GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null go test -timeout 40m ./...
+# ok  cmd/entire-graph · cmd/graph-bench · internal/bench · internal/cli
+# ok  internal/filedigest · internal/gitutil · internal/sem · internal/termsafe
+```
 
 **Full suite** (takes a while, start it and keep working):
 ```sh
@@ -276,28 +351,58 @@ GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null go test -timeout 30m ./.
 
 ---
 
-## 9. The noon curveball — the process is graded, not just the code
+## 9. The noon curveball — DONE. Here is what happened.
 
-At 12:00 the organisers hand out an extra mandatory constraint. Follow this
-order exactly:
+**The constraint:** *the graph is evidence, not an oracle.* Our tool has to
+cope with repositories using dynamic dispatch, reflection or generated code,
+which static analysis cannot fully resolve.
 
-1. **End the current agent session before reading the card** (New Chat, or
-   `/clear`). This is required and it also seals our checkpoint.
-2. Read the card.
-3. Start a fresh agent session in the `deathcode` folder.
-4. **Before editing anything**, make the agent rebuild its understanding from
-   our checkpoints:
-   ```sh
-   entire checkpoint list
-   entire checkpoint explain <id>
-   ```
-   Our commit messages are written densely on purpose so this works.
-5. Capture graph evidence **before** changing the affected area:
-   ```sh
-   ./entire-graph simulate --repo . --symbol <affected thing> > docs/buildathon/evidence/04-before-curveball.txt
-   ```
-6. Implement the **smallest complete** response. Test it. Commit with what
-   changed and why.
+**The process, which is graded as much as the code:**
+
+1. The previous session was sealed before the card was read, so a fresh agent
+   session rebuilt its understanding from `entire checkpoint list` /
+   `entire checkpoint explain` and our commit messages. It worked — our commit
+   bodies are dense on purpose.
+2. **Graph analysis ran BEFORE any edit**, on our own code paths that consume
+   graph evidence, saved to
+   [`evidence/04-before-curveball.txt`](evidence/04-before-curveball.txt) (689
+   lines). Judges score graph use that happens after implementation in the
+   partial band, so this ordering mattered.
+3. Only then did we change code.
+
+**The bug it found.** We were treating the graph as a **closed world**: if the
+graph returned no test for a symbol, we printed "has no covering test" as a
+fact; if it returned any edge from a test file, we printed it as proof the test
+runs the code. Both are wrong the moment a repo uses interfaces.
+
+Two things made this concrete rather than theoretical:
+
+- **All 9 `TESTS` edges in our own repo are resolved by name, not by tracing.**
+  Zero are `exact`. We were calling those "proven".
+- **`impact` prints `Completeness: degraded for Go (...)` on every run, and
+  `simulate` printed it zero times** on the identical snapshot. We had plumbed
+  the diagnostics into our response object and never read them. So we were
+  emitting a bare `RISK HIGH` off a snapshot the provider itself flags as
+  incomplete.
+
+**The fix, in one sentence:** evidence is now tiered by *how the provider
+resolved the edge* rather than by the edge's existence, coverage has three
+states instead of two, partial analysis is announced with its reasons, and
+every claim we cannot prove ships with the command that settles it.
+
+**The proof it is honest.** The fixture in
+[`evidence/06-curveball-fixture.txt`](evidence/06-curveball-fixture.txt) is a
+repo where `Gateway` has two implementations, so the interface call cannot be
+resolved. `TestCheckoutWithStripe` genuinely executes `chargeViaStripe` — Go's
+own coverage tool says **100% covered** — and the graph cannot see it. The old
+output said "no covering test", which was **false**. The new output says no
+test could be *resolved*, flags the analysis partial, and prints the command to
+check.
+
+**What did not change**, and is pinned by test: `1292 of 1405` covered symbols
+in this repo have a properly resolved test edge. All of them still read
+`edge` / `confirmed`, with the same counts and the same `RISK`. The defect
+affected the other `113`.
 
 ---
 
@@ -310,13 +415,35 @@ order exactly:
    nothing catches you."*
 4. Open one of those files. *"Every claim has a real file and line. Nothing here
    is a guess you have to trust."*
-5. Point at the word `edge`: *"That means the graph proved the test runs this
-   code. `mirror` would mean a weaker filename-based guess. We label which one,
-   every time."*
-6. Show the curveball commit and the test that proves it.
-7. Volunteer limitation #1 from §7.
+5. Point at the word `edge` and the `[package]` beside it: *"That means the
+   graph traced the call. `edge-heuristic` would mean the edge was drawn by
+   matching a name — which is what an interface call produces. We label which
+   one, every time, and we print the provider's own word for how it resolved."*
+6. **The curveball, and this is the strongest 20 seconds you have.** Run it on
+   the fixture:
+   ```sh
+   ./entire-graph simulate --repo /tmp/dispatch-fixture --symbol chargeViaStripe
+   ```
+   Then say: *"This function is 100% covered — Go's own coverage tool says so.
+   The graph cannot see it, because the only path runs through an interface
+   with two implementations. The old version of our tool said 'no covering
+   test', and that was a lie. This version says no test could be resolved,
+   flags the analysis as partial, and gives you the command to check."*
+   Then show `evidence/06-curveball-fixture.txt` with the coverage numbers.
+7. Volunteer limitation #1 from §7 — *"confirmed means the test reaches the
+   code, not that it asserts the behaviour you are changing."*
 
 **Warm the cache first.** Run the demo command once before you present.
+
+**Build the demo fixture first too** — it lives in the test file, so create the
+scratch copy before you present:
+```sh
+GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null \
+  go test ./internal/cli/ -run TestSimulateOnUnresolvableDynamicDispatchFixture -count=1
+```
+That proves the fixture works. For the live demo, the copy at
+`/tmp/dispatch-fixture` (recipe in `evidence/06-curveball-fixture.txt`) is what
+you point the command at.
 
 ---
 
@@ -329,6 +456,7 @@ order exactly:
 | Entire mirror | `entire://aws-ap-south-1.entire.io/gh/arenforge/entire-graph-deathcode` |
 | Mirror ID | `01M1TM59AMZQ38B7TCC4BFP25A` |
 | Branch | `buildathon/main` |
+| `format_version` | 2 (bumped by the curveball: `evidence` gained a third value) |
 | Final commit SHA | fill in at 2:40 PM |
 | Deadline | **3:00 PM IST — submit by 2:50** |
 

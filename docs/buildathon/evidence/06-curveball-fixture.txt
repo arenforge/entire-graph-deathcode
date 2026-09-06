@@ -1,0 +1,220 @@
+================================================================================
+06 — THE CURVEBALL FIXTURE: A REPOSITORY STATIC ANALYSIS CANNOT FULLY RESOLVE
+================================================================================
+
+This is the artifact for curveball requirement 5. It is a real repository, not
+a mocked snapshot, built so the path from a test to a production symbol runs
+through dynamic dispatch that cannot be resolved statically.
+
+Why the hop is genuinely unresolvable, not just unresolved by luck:
+  - Gateway has TWO implementations (Stripe, Adyen), so the provider's rule
+    "interface method call resolved to the unique implementing method" cannot
+    fire (internal/sem/provider.go:8459).
+  - `Charge` is not a globally unique method name either, so the name_only
+    fallback ("method call matched globally unique method name") cannot fire.
+  - So `g.Charge(cents)` in Checkout has no resolvable target. The graph holds
+    no edge across it.
+
+The fixture source is committed as a Go test fixture in
+internal/cli/simulate_test.go (TestSimulateOnUnresolvableDynamicDispatchFixture).
+
+--- GROUND TRUTH, measured by Go's own coverage tool ---
+
+  $ cd /tmp/dispatch-fixture
+  $ go test ./... -run TestCheckoutWithStripe -coverprofile=cov.out
+  $ go tool cover -func=cov.out
+
+  fixture/payments.go:9:   Charge           100.0%
+  fixture/payments.go:13:  Charge             0.0%
+  fixture/payments.go:15:  chargeViaStripe  100.0%
+  fixture/payments.go:19:  Checkout         100.0%
+
+chargeViaStripe is 100% COVERED. TestCheckoutWithStripe really does execute it,
+via Checkout -> Gateway.Charge -> Stripe.Charge -> chargeViaStripe. No static
+analysis of this repository can see that.
+
+So this is the exact case where the old output was not merely cautious but
+WRONG: v1 printed "N affected symbols have no covering test", and for this
+symbol that statement is false.
+
+--- WHAT THE COMMAND PRINTS NOW ---
+
+Change simulation: chargeViaStripe  payments.go:15
+Index: cache-miss
+
+AFFECTED   2 symbols across 0 module(s)
+
+TESTS      0 of 2 affected symbols have a resolved covering test
+           0 confirmed by a resolved edge, 0 on heuristic evidence only
+  (none)
+
+BREAKING   0 affected symbols are outside the repository root (0 with no resolved test)
+  (none - the blast radius stays inside one module)
+
+UNCOVERED  2 affected symbols have no test the graph could resolve
+           (that is an absence of resolved evidence, not proof no test exists)
+  chargeViaStripe                payments.go:15  <- the symbol you are changing
+  Charge                         payments.go:9
+
+VERIFY     2 claims are not confirmed structural evidence
+  chargeViaStripe                payments.go:15                           no test the graph could resolve
+      $ entire graph neighbors --repo . --symbol chargeViaStripe --relation CALLS --direction in
+  Charge                         payments.go:9                            no test the graph could resolve
+      $ entire graph neighbors --repo . --symbol Charge --relation CALLS --direction in
+
+RISK  HIGH - 2 of 2 affected symbols have no resolved covering test (majority uncovered)
+
+ANALYSIS MAY BE PARTIAL - this verdict rests on incomplete evidence:
+  - 2 symbols have no test the graph could resolve, which is not proof no test exists
+Note: TESTS is a heuristic relation in this provider, and static analysis
+cannot resolve dynamic dispatch, reflection or generated code. Open the
+cited lines, or run the VERIFY commands, before gating a merge on this.
+
+Read against the ground truth above:
+  - It no longer says "no covering test". It says "no test the graph could
+    resolve", and states on the next line that this is an absence of resolved
+    evidence, not proof no test exists. (requirement 1)
+  - ANALYSIS MAY BE PARTIAL fires, naming the reason. (requirement 2)
+  - VERIFY gives the exact command that would settle each claim.
+    (requirement 3)
+  - RISK is still HIGH and still recomputable from the two printed counts:
+    2 of 2. No score, no percentage. (unchanged constraint)
+
+--- REQUIREMENT 4: THE FULLY RESOLVED CASE IN THE SAME REPOSITORY ---
+
+FormatAmount is called directly by TestFormatAmount, which the graph resolves
+without difficulty. Its output must not have moved.
+
+Change simulation: FormatAmount  payments.go:21
+Index: cache-miss
+
+AFFECTED   1 symbols across 0 module(s)
+
+TESTS      1 of 1 affected symbols have a resolved covering test
+           1 confirmed by a resolved edge, 0 on heuristic evidence only
+  payments_test.go:11                      edge            [package]    TestFormatAmount -> FormatAmount
+
+BREAKING   0 affected symbols are outside the repository root (0 with no resolved test)
+  (none - the blast radius stays inside one module)
+
+UNCOVERED  0 affected symbols have no test the graph could resolve
+           (that is an absence of resolved evidence, not proof no test exists)
+  (none)
+
+RISK  LOW - all 1 affected symbols have a resolved covering test
+Note: TESTS is a heuristic relation in this provider, and static analysis
+cannot resolve dynamic dispatch, reflection or generated code. Open the
+cited lines, or run the VERIFY commands, before gating a merge on this.
+
+Confirmed evidence, tier `edge`, resolution printed beside it, RISK LOW,
+nothing in VERIFY, and no partiality block. Requirement 4 holds, and it is
+pinned by the third subtest of
+TestSimulateOnUnresolvableDynamicDispatchFixture rather than by assertion here.
+
+--- MACHINE-READABLE JSON, THE SAME RUN ---
+
+  $ ./entire-graph simulate --repo /tmp/dispatch-fixture \
+        --symbol chargeViaStripe --format json | jq '{...}'
+
+  {
+    "format_version": 2,
+    "analysis_partial": true,
+    "partial_reasons": [
+      "2 symbols have no test the graph could resolve, which is not proof no test exists"
+    ],
+    "affected_total": 2,
+    "covered_total": 0,
+    "uncovered_total": 2,
+    "confirmed_total": 0,
+    "heuristic_total": 0,
+    "affected_truncated": false,
+    "risk": "HIGH",
+    "risk_reason": "2 of 2 affected symbols have no resolved covering test (majority uncovered)",
+    "verify": [
+      { "symbol": "chargeViaStripe", "location": "payments.go:15",
+        "why": "no test the graph could resolve",
+        "command": "entire graph neighbors --repo . --symbol chargeViaStripe --relation CALLS --direction in" },
+      { "symbol": "Charge", "location": "payments.go:9",
+        "why": "no test the graph could resolve",
+        "command": "entire graph neighbors --repo . --symbol Charge --relation CALLS --direction in" }
+    ],
+    "affected": [
+      { "name": "chargeViaStripe", "coverage": "unresolved", "tests": 0 },
+      { "name": "Charge",          "coverage": "unresolved", "tests": 0 }
+    ]
+  }
+
+A merge gate reads `analysis_partial` and stops; it does not have to parse text
+or infer anything. `partial_reasons` is what makes the flag auditable.
+
+--- RECIPE: REBUILD THIS FIXTURE FOR A LIVE DEMO ---
+
+The fixture is committed as a Go test (it builds itself in a t.TempDir), so for
+a live demo make a scratch copy:
+
+  mkdir -p /tmp/dispatch-fixture && cd /tmp/dispatch-fixture
+  git init -q . && git config user.name t && git config user.email t@t.local
+  printf 'module fixture\n\ngo 1.21\n' > go.mod
+
+  cat > payments.go <<'EOF'
+  package app
+
+  type Gateway interface {
+          Charge(cents int) error
+  }
+
+  type Stripe struct{}
+
+  func (s Stripe) Charge(cents int) error { return chargeViaStripe(cents) }
+
+  type Adyen struct{}
+
+  func (a Adyen) Charge(cents int) error { return chargeViaAdyen(cents) }
+
+  func chargeViaStripe(cents int) error { return nil }
+
+  func chargeViaAdyen(cents int) error { return nil }
+
+  func Checkout(g Gateway, cents int) error { return g.Charge(cents) }
+
+  func FormatAmount(cents int) string {
+          if cents == 0 {
+                  return "free"
+          }
+          return "paid"
+  }
+  EOF
+
+  cat > payments_test.go <<'EOF'
+  package app
+
+  import "testing"
+
+  func TestCheckoutWithStripe(t *testing.T) {
+          if err := Checkout(Stripe{}, 100); err != nil {
+                  t.Fatal(err)
+          }
+  }
+
+  func TestFormatAmount(t *testing.T) {
+          if FormatAmount(0) != "free" {
+                  t.Fatal("bad")
+          }
+  }
+  EOF
+
+  git add . && git commit -qm fixture
+
+  # ground truth
+  go test ./... -run TestCheckoutWithStripe -coverprofile=cov.out
+  go tool cover -func=cov.out
+
+  # our tool
+  cd <deathcode> && ./entire-graph simulate --repo /tmp/dispatch-fixture --symbol chargeViaStripe
+
+NOTE ON INDENTATION: the heredoc bodies above are indented for readability in
+this document. Go does not care, and gofmt is not run on the scratch copy.
+
+================================================================================
+END
+================================================================================

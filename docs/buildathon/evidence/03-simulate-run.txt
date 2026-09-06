@@ -1,29 +1,103 @@
+================================================================================
+03 — SIMULATE ON REAL CODE IN THIS REPOSITORY
+================================================================================
+
+Refreshed after the curveball response, so this file shows the shipped output
+rather than the pre-curveball output. The pre-curveball output, and the
+measurements that justified changing it, are preserved in
+04-before-curveball.txt.
+
+Focus: buildImpactResponseFromReader (internal/cli/impact.go:330) -- the
+function simulate itself calls to get the blast radius, so the command is
+pointed at its own dependency.
+
 Change simulation: buildImpactResponseFromReader  internal/cli/impact.go:330
 Index: cache-miss
+Completeness: degraded for Go (0 of 417 Go files failed to parse; 7 total diagnostics in this snapshot)
+- warning W_DATA_FLOW_EVIDENCE_UNMERGED
+- plus 5 diagnostics in other languages (C++ 5), which cannot affect this answer
 
-AFFECTED   12 symbols across 2 module(s)
+AFFECTED   12 symbols across 2 modules
   internal/cli
   internal/sem
 
-TESTS      6 of 12 affected symbols have a covering test
-  internal/cli/linereader_ondisk_test.go:23 edge     buildImpactResponseOnDisk -> buildImpactResponseFromReader
-  internal/cli/agents_test.go:26 edge     TestAgentGuidePrintsDoctrine -> Run (+127 more)
-  internal/sem/provider_test.go:154 mirror   TestBuildProviderSnapshotEmitsContractRecords -> ProviderSnapshot (+72 more)
-  internal/cli/symbolref_test.go:121 edge     TestResolveFocusSymbolsEscapeHatches -> snapshotFilePaths (+2 more)
-  internal/cli/symbolref_answers_test.go:32 edge     TestResolveFocusSymbolsOrFuzzyNeverAnswersEmpty -> resolveFocusSymbolsOrFuzzy (+1 more)
-  internal/cli/linereader_ondisk_test.go:27 edge     symbolMatchBodiesOnDisk -> symbolMatchBodiesFromReader
+TESTS      6 of 12 affected symbols have a resolved covering test
+           5 confirmed by a resolved edge, 1 on heuristic evidence only
+  ...rnal/cli/linereader_ondisk_test.go:23 edge            [package]    buildImpactResponseOnDisk -> buildImpactResponseFromReader
+  internal/cli/agents_test.go:26           edge            [package]    TestAgentGuidePrintsDoctrine -> Run (+128 more)
+  internal/sem/provider_test.go:154        mirror                       TestBuildProviderSnapshotEmitsContractRecords -> ProviderSnapshot (+72 more)
+  internal/cli/symbolref_test.go:121       edge            [package]    TestResolveFocusSymbolsEscapeHatches -> snapshotFilePaths (+2 more)
+  ...rnal/cli/symbolref_answers_test.go:32 edge            [package]    TestResolveFocusSymbolsOrFuzzyNeverAnswersEmpty -> resolveFocusSymbolsOrFuzzy (+1 more)
+  ...rnal/cli/linereader_ondisk_test.go:27 edge            [package]    symbolMatchBodiesOnDisk -> symbolMatchBodiesFromReader
 
-BREAKING   1 affected symbol is outside internal/cli (0 uncovered)
+BREAKING   1 affected symbol is outside internal/cli (0 with no resolved test)
   ProviderSnapshot               internal/sem/provider.go:417
 
-UNCOVERED  6 affected symbols have no covering test
+UNCOVERED  6 affected symbols have no test the graph could resolve
+           (that is an absence of resolved evidence, not proof no test exists)
   runImpact                      internal/cli/impact.go:124
-  runSimulate                    internal/cli/simulate.go:131
+  runSimulate                    internal/cli/simulate.go:286
   lineReader                     internal/cli/callsite.go:85
   impactFlags                    internal/cli/impact.go:26
   impactResponse                 internal/cli/impact.go:81
   impactSectionOf                internal/cli/impact.go:626
 
-RISK  HIGH - 6 of 12 affected symbols have no covering test (>= 5 uncovered)
-Note: TESTS is a heuristic relation in this provider. Open the
-cited lines before gating a merge on this verdict.
+VERIFY     7 claims are not confirmed structural evidence
+  runImpact                      internal/cli/impact.go:124               no test the graph could resolve
+      $ entire graph neighbors --repo . --symbol runImpact --relation CALLS --direction in
+  runSimulate                    internal/cli/simulate.go:286             no test the graph could resolve
+      $ entire graph neighbors --repo . --symbol runSimulate --relation CALLS --direction in
+  lineReader                     internal/cli/callsite.go:85              no test the graph could resolve
+      $ entire graph neighbors --repo . --symbol lineReader --relation CALLS --direction in
+  impactFlags                    internal/cli/impact.go:26                no test the graph could resolve
+      $ entire graph neighbors --repo . --symbol impactFlags --relation CALLS --direction in
+  impactResponse                 internal/cli/impact.go:81                no test the graph could resolve
+      $ entire graph neighbors --repo . --symbol impactResponse --relation CALLS --direction in
+  ProviderSnapshot               internal/sem/provider.go:417             mirror evidence
+      $ go test ./internal/sem/ -run '^TestBuildProviderSnapshotEmitsContractRecords$' -count=1
+  impactSectionOf                internal/cli/impact.go:626               no test the graph could resolve
+      $ entire graph neighbors --repo . --symbol impactSectionOf --relation CALLS --direction in
+
+RISK  HIGH - 6 of 12 affected symbols have no resolved covering test (>= 5 uncovered)
+      1 covered symbol rests on heuristic evidence; if none hold, 7 of 12 are unguarded.
+
+ANALYSIS MAY BE PARTIAL - this verdict rests on incomplete evidence:
+  - snapshot completeness is "degraded", not "ok"
+  - 1 provider warning in scope for this query
+  - 1 of 6 covered symbols rest on heuristic evidence only
+  - 6 symbols have no test the graph could resolve, which is not proof no test exists
+Note: TESTS is a heuristic relation in this provider, and static analysis
+cannot resolve dynamic dispatch, reflection or generated code.
+Open the cited lines, or run the VERIFY commands, before gating a merge.
+
+--------------------------------------------------------------------------------
+HOW TO READ THIS, AND WHAT IS RECOMPUTABLE BY HAND
+--------------------------------------------------------------------------------
+
+Unchanged from the pre-curveball run on the same symbol (see 04, SECTION B/C):
+  AFFECTED 12, COVERED 6, UNCOVERED 6, cross-module 1, RISK HIGH.
+That is curveball requirement 4 visible on real code: the classification and
+the verdict did not move.
+
+New, and the point of the change:
+  - "resolved covering test", not "covering test". The graph resolving nothing
+    is not proof that nothing exists.
+  - The 6 covered split into 5 confirmed + 1 heuristic. The 1 is ProviderSnapshot,
+    carried by a `mirror` match (a test in the mirror file that names it), not
+    by a traced call.
+  - Each test line prints the provider's own resolution word in brackets, so
+    the tier beside it is auditable rather than asserted.
+  - Completeness is now reported. It says "degraded for Go" -- which was true
+    on this snapshot before the change too, and was being dropped.
+  - VERIFY lists all 7 unproven claims with the command that settles each.
+  - RISK carries the bound: 6 uncovered + 1 heuristic = 7 of 12 if the weak
+    evidence does not hold. Addition, not a score.
+
+Arithmetic anyone can check against the header:
+  6 covered  = 5 confirmed + 1 heuristic
+  12 affected = 6 covered + 6 uncovered
+  7 VERIFY entries = 6 uncovered + 1 heuristic
+  RISK HIGH fires because uncovered (6) >= 5.
+
+Command:
+  ./entire-graph simulate --repo . --symbol buildImpactResponseFromReader
