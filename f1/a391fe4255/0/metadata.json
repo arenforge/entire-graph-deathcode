@@ -24,6 +24,64 @@
   "session_metrics": {
     "turn_count": 1
   },
+  "summary": {
+    "intent": "Compete in the Bengaluru Tech Week Buildathon (Track 2: Entire Graph) with a 4-person team, using Claude Code to set up the Entire CLI/Graph tooling correctly, choose a rubric-aligned feature, and implement it before the noon curveball and 3PM deadline.",
+    "outcome": "Fixed two eligibility gaps (missing Entire mirror, session attached to the wrong repo), settled on a feature ('entire graph simulate' / GraphMind) that surfaces uncovered-test blast radius using existing but underused graph edges, and implemented, tested, and committed a working v1 (simulate.go, root.go/help.go registration, passing tests, evidence capture, BUILDATHON.md) ahead of the 11:45 pre-noon checkpoint.",
+    "learnings": {
+      "repo": [
+        "entire-graph-deathcode / deathcode is a mature Go 1.26 Entire Graph plugin (~20 languages, tree-sitter based, no network calls), not a starter app — new work must match its existing bar of implementation+tests+docs.",
+        "internal/sem/search_covertest.go already implements a tiered covering-test resolver (graph edge > mirror file > name match), citing a measured SWE-bench improvement (50.9% vs 42.1%), but it's only surfaced as a single top-hit side-section inside `search` — not exposed via `impact`, `diff`, `commit`, or `checkpoint`.",
+        "internal/cli/impact.go documents/produces blast radius (transitive callers depth<=2, callees, type consumers, data flows, co-change files, siblings) but has zero references to TESTS/covering tests — composing impact + covering-tests was the identified gap.",
+        "TESTS is a heuristic relation type (see HeuristicRelationTypes in internal/sem/provider.go:649) and must be disclosed as such rather than presented as ground truth.",
+        "The repo's README explicitly retracts/qualifies its own benchmark numbers (e.g. distinguishing a #104 branch result of 94.74 from v0.4.0's actual score) — inventing scores like 'Risk Score 8.9/10' or 'Confidence 94%' would be flatly inconsistent with the project's own documented rigor.",
+        "internal/cli/root.go:72-125 is a single big switch statement dispatching ~25 CLI subcommands; help.go holds a commandDocs registry that new commands must also update.",
+        "`entire repo mirror create` + `entire repo clone /gh/...` is mandatory for eligibility — a plain `git clone` from GitHub does not count as working 'in the clone created through the Entire mirror workflow', even though CLI usage otherwise looks identical."
+      ],
+      "code": [
+        {
+          "path": "internal/sem/search_covertest.go",
+          "finding": "Contains the tiered covering-test resolver (edge/mirror/name-match) reused for the new simulate command; previously only invoked for the single top search hit."
+        },
+        {
+          "path": "internal/cli/impact.go",
+          "finding": "Reference pattern for flag parsing and blast-radius traversal (dependents.go) that the new simulate.go command was modeled on; confirmed to have no TESTS-edge handling."
+        },
+        {
+          "path": "internal/cli/root.go",
+          "line": 72,
+          "end_line": 125,
+          "finding": "Command dispatch switch where new subcommands (`case \"simulate\":`) must be registered."
+        },
+        {
+          "path": "internal/sem/provider.go",
+          "line": 649,
+          "finding": "HeuristicRelationTypes list includes TESTS, confirming it's inferred rather than a guaranteed/verified relation — must be disclosed in output/docs as heuristic."
+        }
+      ],
+      "workflow": [
+        "When a Claude Code session's working directory doesn't match the intended repo, `entire session adopt` can re-attach the running session to a new clone (Worktree/branch) without needing to quit and relaunch — recovered from a session-tracking mistake without losing context.",
+        "`entire enable --agent codex` only installs Entire's Codex hooks; it does not install the Codex CLI itself (needs the separate `curl ... codex/install.sh` installer).",
+        "Under time pressure, checking actual code (grep for TESTS/covering-test references) rather than trusting a plausible-sounding feature pitch caught that 3 of 7 proposed 'GraphMind' feature sections were already shipped in `impact`, and 2 more (deployment checklist, suggested reviewers via LLM/git-blame) were ungrounded or off-track for a no-network-call tool.",
+        "For hackathon judging tied to a rubric, prioritize the one feature gap that's provably absent (grepped zero hits) over reskinning existing shipped functionality, since 'innovation' points are scored against novelty."
+      ]
+    },
+    "friction": [
+      "User initially set up Entire/Codex/Claude hooks in the wrong outer folder ('Scaler Buildathon/') instead of the actual nested project repo, creating a stray empty git repo with duplicate AGENTS.md/CLAUDE.md that had to be identified and left alone (not deleted) to avoid disrupting the live session.",
+      "Discovered late (11:17 AM, 43 minutes before the noon curveball) that no Entire mirror had ever been created — the team had been working in a plain GitHub clone the entire time, which violated a hard eligibility requirement and required an emergency re-clone.",
+      "The Claude Code session itself was attached to the wrong (empty) repository, meaning all prior agent reasoning wasn't being recorded as checkpoints against the real project — required an `entire session adopt` workaround since the agent process couldn't self-restart.",
+      "User pasted multiple external chatbot (ChatGPT) generated feature proposals (Code Impact Simulator, GraphMind) that included ungrounded/invented elements (fabricated risk scores, confidence percentages, LLM-based suggestions) inconsistent with the actual codebase and had to be corrected against actual grep evidence.",
+      "Full test suite (`go test ./...`) did not complete within a 30-second command window in the analysis environment, deferring full verification to local runs.",
+      "Extreme time pressure throughout (noon curveball deadline, 3PM submission) constrained how much verification/analysis could be done before committing to an implementation path."
+    ],
+    "open_items": [
+      "Full test suite run (`go test -timeout 30m ./...`) was never completed/confirmed in this transcript — needed before trusting a fully green baseline.",
+      "The `entire graph simulate` command's RISK/breaking-changes and implementation-order sections (topological sort, module-boundary crossing) were deferred to post-lunch work per plan.",
+      "Suggested reviewers and release-readiness features were explicitly deferred to 'next steps' in BUILDATHON.md rather than implemented.",
+      "The Noon Curveball response itself was not yet received/addressed as of the end of this transcript.",
+      "Final semantic-diff evidence capture (`entire graph diff --base <pre-noon-sha> --head HEAD`) and JSON output format for `simulate` were planned for the 1:00–3:00 window but not yet done.",
+      "Outer 'Scaler Buildathon/' folder still has leftover stray git repo/.entire/.claude/AGENTS.md/CLAUDE.md files that the user may want to clean up post-competition."
+    ]
+  },
   "initial_attribution": {
     "calculated_at": "2026-09-06T06:07:41.902779Z",
     "agent_lines": 194,
