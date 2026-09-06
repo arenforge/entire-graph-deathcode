@@ -30,8 +30,16 @@ Branch: `buildathon/main`
 cd "/Users/arhan/1. New Study Material/Scaler Buildathon/deathcode"
 git pull
 go build -o entire-graph ./cmd/entire-graph
-./entire-graph simulate --repo . --symbol buildImpactResponseFromReader
+
+# Run it ONCE to build the index (~22s), then every later run is ~0.6s.
+# --head and --cache-dir are BOTH required for the cache to hit.
+./entire-graph simulate --repo . --symbol buildImpactResponseFromReader \
+    --head --cache-dir .cache/graph
 ```
+
+**Do not drop `--head`.** Without it the tool reads your working tree, which
+cannot be cached, so every single run pays the full 22 seconds. With it, the
+second run onwards is 0.6s. Measured: 22.0s cold, 0.637s warm.
 
 If you see a report with the words AFFECTED, TESTS, BREAKING, UNCOVERED and
 RISK, you are ready.
@@ -433,7 +441,17 @@ affected the other `113`.
 7. Volunteer limitation #1 from §7 — *"confirmed means the test reaches the
    code, not that it asserts the behaviour you are changing."*
 
-**Warm the cache first.** Run the demo command once before you present.
+**Warm the cache first, and use `--head --cache-dir`.** This is the single
+biggest thing that can go wrong live:
+
+```sh
+./entire-graph simulate --repo . --symbol buildImpactResponseFromReader \
+    --head --cache-dir .cache/graph
+```
+
+Run that once. The first run is 22s; every run after is 0.6s. If you forget
+`--head`, you will stand in front of the judges for 22 seconds of silence on
+every command.
 
 **Build the demo fixture first too** — it lives in the test file, so create the
 scratch copy before you present:

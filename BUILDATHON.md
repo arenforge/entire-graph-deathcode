@@ -220,8 +220,11 @@ git clone entire://aws-ap-south-1.entire.io/gh/arenforge/entire-graph-deathcode
 cd entire-graph-deathcode
 go build -o entire-graph ./cmd/entire-graph
 
-# the new command (warm the cache first: a cold index is ~21s)
-./entire-graph simulate --repo . --symbol buildImpactResponseFromReader
+# the new command. --head and --cache-dir are both required for the index
+# cache to hit: 22.0s on the first run, 0.637s on every run after.
+# Without --head the working tree is read, which cannot be cached.
+./entire-graph simulate --repo . --symbol buildImpactResponseFromReader \
+    --head --cache-dir .cache/graph
 
 # machine output, including analysis_partial and the verify list
 ./entire-graph simulate --repo . --symbol FormatAmount --format json | jq .
@@ -264,8 +267,10 @@ State these before a judge finds them.
    project in those languages.
 6. **The Go `-run` verification command is emitted only for Go.** For other
    languages we print "open this file" rather than guess at a test runner.
-7. **Cold start is ~21 seconds** on this repository. Warm the cache before any
-   demo.
+7. **Cold start is ~22 seconds**, and the cache only hits with BOTH `--head`
+   and `--cache-dir`. Without `--head` the working tree is read, which cannot be
+   cached, so warming has no effect and every run pays full cost. Measured on
+   this repository: 22.0s cold, 0.637s warm.
 8. **Symbols at the repository root report module `""`**, so a root-level
    fixture prints "across 0 modules". Cosmetic, pre-existing, and untouched
    here because changing the module grouping would change `BREAKING`.
