@@ -359,7 +359,12 @@ func simulateCoverageRelation(relationType string) bool {
 }
 
 func (index *simulateCoverageIndex) coveringTests(endpoint neighborEndpoint) []simulateCoveringTest {
-	var tests []simulateCoveringTest
+	// Non-nil from the start: an uncovered symbol must serialize as "tests": []
+	// and not "tests": null. A consumer gating a merge on this output should be
+	// able to read len(tests) without first distinguishing "no tests found"
+	// from "coverage was never computed" -- and those two are NOT the same
+	// claim, so the wire format must not spell them identically.
+	tests := []simulateCoveringTest{}
 	seen := map[string]bool{}
 
 	// Tier 1, edge: the graph resolved that a symbol in a test file reaches
@@ -389,7 +394,7 @@ func (index *simulateCoverageIndex) coveringTests(endpoint neighborEndpoint) []s
 	// command exists to expose.
 	stem := simulateFileStem(endpoint.FilePath)
 	if stem == "" || endpoint.Name == "" {
-		return nil
+		return tests
 	}
 	for _, candidate := range index.testsByStem[stem] {
 		if candidate.FilePath == endpoint.FilePath || seen[candidate.ID] {

@@ -1,6 +1,12 @@
 package cli
 
-import "testing"
+import (
+	"encoding/json"
+	"strings"
+	"testing"
+
+	"github.com/entireio/entire-graph/internal/sem"
+)
 
 // The risk verdict is the one number-shaped thing this command prints, so it is
 // the one a reader is most likely to quote out of context. These cases pin the
@@ -130,5 +136,31 @@ func TestCollectSimulateAffectedMarksCrossModule(t *testing.T) {
 	}
 	if !byName["AdminPortal"].CrossModule {
 		t.Error("a caller in another module must be marked cross-module")
+	}
+}
+
+// "tests": null and "tests": [] are different claims -- "coverage was never
+// computed" versus "no test covers this" -- and only the second one is true
+// here. The wire format must not spell them the same way.
+func TestSimulateUncoveredSerializesEmptyTestArray(t *testing.T) {
+	index := &simulateCoverageIndex{
+		symbolsByID:   map[string]sem.SymbolRecord{},
+		inboundByID:   map[string][]sem.RelationRecord{},
+		testsByStem:   map[string][]sem.SymbolRecord{},
+		symbolsByFile: map[string][]sem.SymbolRecord{},
+	}
+	entry := simulateAffected{
+		Endpoint: neighborEndpoint{ID: "x", Name: "Orphan", FilePath: "auth/orphan.go"},
+		Tests:    index.coveringTests(neighborEndpoint{ID: "x", Name: "Orphan", FilePath: "auth/orphan.go"}),
+	}
+	if entry.Tests == nil {
+		t.Fatal("coveringTests returned nil; an uncovered symbol must carry an empty slice")
+	}
+	encoded, err := json.Marshal(entry)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	if !strings.Contains(string(encoded), `"tests":[]`) {
+		t.Errorf("encoded = %s, want it to contain \"tests\":[]", encoded)
 	}
 }
