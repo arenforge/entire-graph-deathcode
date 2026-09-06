@@ -72,12 +72,17 @@ type simulateCoveringTest struct {
 // simulateAffected is one symbol in the blast radius, with the tests that
 // reach it. An empty Tests slice is the finding, not missing data.
 type simulateAffected struct {
-	Endpoint neighborEndpoint       `json:"endpoint"`
-	Relation string                 `json:"relation,omitempty"`
-	Depth    int                    `json:"depth,omitempty"`
-	Focus    bool                   `json:"focus,omitempty"`
-	Module   string                 `json:"module,omitempty"`
-	Tests    []simulateCoveringTest `json:"tests"`
+	Endpoint neighborEndpoint `json:"endpoint"`
+	Relation string           `json:"relation,omitempty"`
+	Depth    int              `json:"depth,omitempty"`
+	Focus    bool             `json:"focus,omitempty"`
+	Module   string           `json:"module,omitempty"`
+	// CrossModule marks an affected symbol that lives outside the focus's own
+	// module. These are the callers a signature or behaviour change can break
+	// for someone who does not read this diff, which is why they are reported
+	// separately rather than folded into the affected count.
+	CrossModule bool                   `json:"cross_module,omitempty"`
+	Tests       []simulateCoveringTest `json:"tests"`
 }
 
 type simulateResponse struct {
@@ -97,7 +102,13 @@ type simulateResponse struct {
 	AffectedTotal  int                `json:"affected_total"`
 	CoveredTotal   int                `json:"covered_total"`
 	UncoveredTotal int                `json:"uncovered_total"`
-	Modules        []string           `json:"modules"`
+	// CrossModuleTotal counts affected symbols outside the focus's module;
+	// CrossModuleUncoveredTotal is the subset of those with no covering test.
+	// The second number is the worst case this command can report: a caller in
+	// another module that no test guards.
+	CrossModuleTotal          int      `json:"cross_module_total"`
+	CrossModuleUncoveredTotal int      `json:"cross_module_uncovered_total"`
+	Modules                   []string `json:"modules"`
 
 	Risk       string `json:"risk"`
 	RiskReason string `json:"risk_reason"`
@@ -225,6 +236,12 @@ func buildSimulateResponse(snapshot sem.ProviderSnapshot, impact impactResponse,
 		} else {
 			response.CoveredTotal++
 		}
+		if entry.CrossModule {
+			response.CrossModuleTotal++
+			if len(entry.Tests) == 0 {
+				response.CrossModuleUncoveredTotal++
+			}
+		}
 		response.Affected = append(response.Affected, entry)
 	}
 	response.AffectedTotal = len(response.Affected)
@@ -256,6 +273,11 @@ func collectSimulateAffected(impact impactResponse) []simulateAffected {
 	seen := map[string]bool{}
 	var out []simulateAffected
 
+	focusModule := ""
+	if impact.Focus != nil {
+		focusModule = simulateModuleOf(impact.Focus.FilePath)
+	}
+
 	add := func(endpoint neighborEndpoint, relation string, depth int, focus bool) {
 		// External symbols have no body in this repository, so no test here can
 		// cover them and reporting them as gaps would be noise.
@@ -271,12 +293,14 @@ func collectSimulateAffected(impact impactResponse) []simulateAffected {
 			return
 		}
 		seen[endpoint.ID] = true
+		module := simulateModuleOf(endpoint.FilePath)
 		out = append(out, simulateAffected{
-			Endpoint: endpoint,
-			Relation: relation,
-			Depth:    depth,
-			Focus:    focus,
-			Module:   simulateModuleOf(endpoint.FilePath),
+			Endpoint:    endpoint,
+			Relation:    relation,
+			Depth:       depth,
+			Focus:       focus,
+			Module:      module,
+			CrossModule: !focus && module != focusModule,
 		})
 	}
 
@@ -514,6 +538,28 @@ func simulateLocation(endpoint neighborEndpoint) string {
 	return endpoint.FilePath
 }
 
+// simulatePluralSymbols keeps the count line readable at one. A header that
+// reads "1 affected symbols" undercuts a report whose whole claim is care.
+func simulatePluralSymbols(count int) string {
+	if count == 1 {
+		return "symbol is"
+	}
+	return "symbols are"
+}
+
+// simulateFocusModuleLabel names the module the change originates in, so the
+// BREAKING header states what "outside" is measured against instead of leaving
+// the reader to guess.
+func simulateFocusModuleLabel(response simulateResponse) string {
+	if response.Focus == nil {
+		return "the focus module"
+	}
+	if module := simulateModuleOf(response.Focus.FilePath); module != "" {
+		return module
+	}
+	return "the repository root"
+}
+
 func writeSimulateText(out io.Writer, response simulateResponse) {
 	writer := termsafe.NewWriter(out)
 
@@ -563,6 +609,29 @@ func writeSimulateText(out io.Writer, response simulateResponse) {
 	}
 	if covered == 0 {
 		fmt.Fprintln(writer, "  (none)")
+	}
+
+	// BREAKING names the affected symbols outside the focus's own module. A
+	// developer reading their own diff sees the same-module callers for free;
+	// these are the ones they will not notice. Cross-module AND uncovered is
+	// the worst case, so it is marked inline rather than left to be inferred.
+	fmt.Fprintf(writer, "\nBREAKING   %d affected %s outside %s (%d uncovered)\n",
+		response.CrossModuleTotal, simulatePluralSymbols(response.CrossModuleTotal),
+		simulateFocusModuleLabel(response), response.CrossModuleUncoveredTotal)
+	printedBreaking := false
+	for _, entry := range response.Affected {
+		if !entry.CrossModule {
+			continue
+		}
+		printedBreaking = true
+		marker := ""
+		if len(entry.Tests) == 0 {
+			marker = "  ** no covering test **"
+		}
+		fmt.Fprintf(writer, "  %-30s %s%s\n", entry.Endpoint.Name, simulateLocation(entry.Endpoint), marker)
+	}
+	if !printedBreaking {
+		fmt.Fprintln(writer, "  (none - the blast radius stays inside one module)")
 	}
 
 	// UNCOVERED is the finding. It is printed last so it is what remains on

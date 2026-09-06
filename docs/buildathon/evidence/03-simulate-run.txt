@@ -1,19 +1,29 @@
-Change simulation: impactCallRelation  internal/cli/impact.go:299
+Change simulation: buildImpactResponseFromReader  internal/cli/impact.go:330
 Index: cache-miss
 
-AFFECTED   6 symbols across 1 module(s)
+AFFECTED   12 symbols across 2 module(s)
   internal/cli
+  internal/sem
 
-TESTS      1 of 6 affected symbols have a covering test
+TESTS      6 of 12 affected symbols have a covering test
   internal/cli/linereader_ondisk_test.go:23 edge     buildImpactResponseOnDisk -> buildImpactResponseFromReader
+  internal/cli/agents_test.go:26 edge     TestAgentGuidePrintsDoctrine -> Run (+127 more)
+  internal/sem/provider_test.go:154 mirror   TestBuildProviderSnapshotEmitsContractRecords -> ProviderSnapshot (+72 more)
+  internal/cli/symbolref_test.go:121 edge     TestResolveFocusSymbolsEscapeHatches -> snapshotFilePaths (+2 more)
+  internal/cli/symbolref_answers_test.go:32 edge     TestResolveFocusSymbolsOrFuzzyNeverAnswersEmpty -> resolveFocusSymbolsOrFuzzy (+1 more)
+  internal/cli/linereader_ondisk_test.go:27 edge     symbolMatchBodiesOnDisk -> symbolMatchBodiesFromReader
 
-UNCOVERED  5 affected symbols have no covering test
-  impactCallRelation             internal/cli/impact.go:299  <- the symbol you are changing
-  simulateCoverageRelation       internal/cli/simulate.go:333
+BREAKING   1 affected symbol is outside internal/cli (0 uncovered)
+  ProviderSnapshot               internal/sem/provider.go:417
+
+UNCOVERED  6 affected symbols have no covering test
   runImpact                      internal/cli/impact.go:124
-  runSimulate                    internal/cli/simulate.go:120
-  newSimulateCoverageIndex       internal/cli/simulate.go:305
+  runSimulate                    internal/cli/simulate.go:131
+  lineReader                     internal/cli/callsite.go:85
+  impactFlags                    internal/cli/impact.go:26
+  impactResponse                 internal/cli/impact.go:81
+  impactSectionOf                internal/cli/impact.go:626
 
-RISK  HIGH - 5 of 6 affected symbols have no covering test (>= 5 uncovered)
+RISK  HIGH - 6 of 12 affected symbols have no covering test (>= 5 uncovered)
 Note: TESTS is a heuristic relation in this provider. Open the
 cited lines before gating a merge on this verdict.

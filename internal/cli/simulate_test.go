@@ -104,3 +104,31 @@ func TestCollectSimulateAffectedDropsTestsAndExternals(t *testing.T) {
 		t.Errorf("module = %q, want auth", affected[1].Module)
 	}
 }
+
+// Cross-module callers are the ones a developer reading their own diff will not
+// notice, so the classification must not depend on the order sections arrive in
+// or credit the focus itself as breaking.
+func TestCollectSimulateAffectedMarksCrossModule(t *testing.T) {
+	focus := neighborEndpoint{ID: "focus", Name: "Login", FilePath: "auth/login.go", StartLine: 10}
+	impact := impactResponse{
+		Focus: &focus,
+		Callers: impactSection{Entries: []impactEntry{
+			{Endpoint: neighborEndpoint{ID: "same", Name: "Authorize", FilePath: "auth/mw.go", StartLine: 31}},
+			{Endpoint: neighborEndpoint{ID: "other", Name: "AdminPortal", FilePath: "admin/portal.go", StartLine: 7}},
+		}},
+	}
+	affected := collectSimulateAffected(impact)
+	byName := map[string]simulateAffected{}
+	for _, entry := range affected {
+		byName[entry.Endpoint.Name] = entry
+	}
+	if byName["Login"].CrossModule {
+		t.Error("the focus must never be marked cross-module")
+	}
+	if byName["Authorize"].CrossModule {
+		t.Error("a caller in the focus's own module is not cross-module")
+	}
+	if !byName["AdminPortal"].CrossModule {
+		t.Error("a caller in another module must be marked cross-module")
+	}
+}
