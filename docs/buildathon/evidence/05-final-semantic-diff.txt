@@ -1,0 +1,234 @@
+Semantic changes 3a2a715..HEAD
+
+.claude/settings.json (JSON)
+  - section permissions removed (10 dependents)
+  - section deny removed (12 dependents)
+
+.gitignore (Git Ignore)
+  ~ document .gitignore body changed (89 dependents)
+
+BUILDATHON.md (Markdown)
+  + section graph-simulate-coverage-aware-change-simulation-you-are-allowed-to-distrust added
+  + section One-sentence-summary added
+  + section Problem-intended-user-and-why-it-matters added
+  + section Selected-Entire-track-and-why-Entire-is-essential added
+  + section Architecture-and-main-workflow added
+  + code_fence code_fence_1_text added
+  + code_fence code_fence_2_text added
+  + section Entire-Graph-findings-and-verification added
+  + section Noon-Curveball:-what-changed-and-how-we-adapted added
+  + section Checkpoint-links-and-what-each-checkpoint-proves added
+  + section Verification added
+  + code_fence code_fence_3_text added
+  + code_fence code_fence_4_text added
+  + section Setup-run-and-test-instructions added
+  + code_fence code_fence_5_sh added
+  + section the-new-command-warm-the-cache-first:-a-cold-index-is-21s added
+  + section machine-output-including-analysis_partial-and-the-verify-list added
+  + section tests-the-env-vars-keep-fixtures-from-inheriting-global-git-config added
+  + code_fence code_fence_6_text added
+  + section Databricks-use-data-sources-and-limitations added
+  + section Known-limitations-and-next-steps added
+
+docs/buildathon/TEAM-BRIEF.md (Markdown)
+  + section Team-brief-read-this-first added
+  + section 1.-Where-the-project-is added
+  + code_fence code_fence_1_text added
+  + code_fence code_fence_2_text added
+  + section Get-set-up-each-person-once added
+  + code_fence code_fence_3_sh added
+  + code_fence code_fence_4_text added
+  + section 2.-What-this-repository-already-was-before-we-touched-it added
+  + section The-commands-it-already-had added
+  + section 3.-The-gap-we-found-this-is-our-whole-project added
+  + section So-here-is-the-hole added
+  + section 4.-What-we-built:-entire-graph-simulate added
+  + section Run-it added
+  + code_fence code_fence_5_sh added
+  + code_fence code_fence_6_text added
+  + section What-it-prints-explained-line-by-line added
+  + code_fence code_fence_7_text added
+  + code_fence code_fence_8_text added
+  + code_fence code_fence_9_text added
+  + code_fence code_fence_10_text added
+  + code_fence code_fence_11_text added
+  + code_fence code_fence_12_text added
+  + code_fence code_fence_13_text added
+  + code_fence code_fence_14_text added
+  + code_fence code_fence_15_text added
+  + code_fence code_fence_16_text added
+  + code_fence code_fence_17_text added
+  + code_fence code_fence_18_text added
+  + code_fence code_fence_19_text added
+  + code_fence code_fence_20_text added
+  + code_fence code_fence_21_text added
+  + code_fence code_fence_22_text added
+  + section 5.-Design-decisions-and-why-judges-will-ask added
+  + section Why-callees-are-excluded added
+  + section Why-we-ignore-co-change-files-and-siblings added
+  + section Why-the-function-you-are-changing-is-in-the-list added
+  + section Why-we-reuse-impact-s-blast-radius-instead-of-computing-our-own added
+  + section Why-the-mirror-tier-requires-the-test-to-name-the-code added
+  + section Things-we-deliberately-did-NOT-build added
+  + section 6.-Files-we-changed added
+  + section The-tests-and-what-each-protects added
+  + code_fence code_fence_23_sh added
+  + code_fence code_fence_24_text added
+  + section 7.-Known-limitations-say-these-before-a-judge-finds-them added
+  + section 8.-What-is-left-to-do added
+  + code_fence code_fence_25_sh added
+  + section ok-cmd/entire-graph-cmd/graph-bench-internal/bench-internal/cli added
+  + section ok-internal/filedigest-internal/gitutil-internal/sem-internal/termsafe added
+  + code_fence code_fence_26_text added
+  + code_fence code_fence_27_sh added
+  + code_fence code_fence_28_text added
+  + code_fence code_fence_29_sh added
+  + code_fence code_fence_30_text added
+  + section 9.-The-noon-curveball-DONE.-Here-is-what-happened. added
+  + section 10.-Demo-script-60-seconds added
+  + code_fence code_fence_31_sh added
+  + code_fence code_fence_32_text added
+  + section 11.-Submission-facts added
+  + section 12.-Rules-that-are-easy-to-break-by-accident added
+
+internal/cli/help.go (Go)
+  ~ module internal/cli/help.go body changed (0 dependents)
+
+internal/cli/help_test.go (Go)
+  ~ module internal/cli/help_test.go body changed (0 dependents)
+
+internal/cli/root.go (Go)
+  ~ function Run body changed (564 dependents)
+
+internal/cli/simulate.go (Go)
+  + function simulateConfirmedResolution added
+  + function simulateHeuristicRelationType added
+  + function simulateEvidenceTier added
+  + type simulateCoveringTest added
+  + field simulateCoveringTest.Endpoint added
+  + field simulateCoveringTest.Relation added
+  + field simulateCoveringTest.Evidence added
+  + field simulateCoveringTest.Resolution added
+  + function simulateCoverageVerdict added
+  + type simulateAffected added
+  + field simulateAffected.Endpoint added
+  + field simulateAffected.Relation added
+  + field simulateAffected.Depth added
+  + field simulateAffected.Focus added
+  + field simulateAffected.Module added
+  + field simulateAffected.CrossModule added
+  + field simulateAffected.Tests added
+  + field simulateAffected.Coverage added
+  + field simulateAffected.Detail added
+  + field simulateAffected.Mention added
+  + type simulateResponse added
+  + field simulateResponse.FormatVersion added
+  + field simulateResponse.RepoRoot added
+  + field simulateResponse.Commit added
+  + field simulateResponse.Profile added
+  + field simulateResponse.Query added
+  + field simulateResponse.DisambiguationRequired added
+  + field simulateResponse.Definitions added
+  + field simulateResponse.Focus added
+  + field simulateResponse.Affected added
+  + field simulateResponse.AffectedTotal added
+  + field simulateResponse.CoveredTotal added
+  + field simulateResponse.UncoveredTotal added
+  + field simulateResponse.ConfirmedTotal added
+  + field simulateResponse.HeuristicTotal added
+  + field simulateResponse.MentionTotal added
+  + field simulateResponse.AffectedOmittedTotal added
+  + field simulateResponse.AffectedTruncated added
+  + field simulateResponse.CrossModuleTotal added
+  + field simulateResponse.CrossModuleUncoveredTotal added
+  + field simulateResponse.Modules added
+  + field simulateResponse.Risk added
+  + field simulateResponse.RiskReason added
+  + field simulateResponse.TestsHeuristic added
+  + field simulateResponse.AnalysisPartial added
+  + field simulateResponse.PartialReasons added
+  + field simulateResponse.Verify added
+  + field simulateResponse.IndexCacheHit added
+  + field simulateResponse.IndexLatencyMS added
+  + field simulateResponse.QueryLatencyMS added
+  + field simulateResponse.TotalLatencyMS added
+  + field simulateResponse.Warnings added
+  + field simulateResponse.PartialFailures added
+  + field simulateResponse.Stats added
+  + field simulateResponse.Completeness added
+  + field simulateResponse.CompletenessScope added
+  + function runSimulate added
+  + function parseSimulateFlags added
+  + function buildSimulateResponse added
+  + function simulatePartiality added
+  + function collectSimulateAffected added
+  + function simulateAffectedSections added
+  + function simulateOmittedTotal added
+  + type simulateCoverageIndex added
+  + field simulateCoverageIndex.symbolsByID added
+  + field simulateCoverageIndex.inboundByID added
+  + field simulateCoverageIndex.testsByStem added
+  + field simulateCoverageIndex.symbolsByFile added
+  + function newSimulateCoverageIndex added
+  + function simulateCoverageRelation added
+  + method simulateCoverageIndex.coveringTests added
+  + function simulateFileStem added
+  + function simulateModuleOf added
+  + function simulateModules added
+  + function simulateRisk added
+  + function capSimulateAffected added
+  + type simulateVerification added
+  + field simulateVerification.Symbol added
+  + field simulateVerification.Location added
+  + field simulateVerification.Why added
+  + field simulateVerification.Command added
+  + function simulateVerifications added
+  + function simulateTestCommand added
+  + function simulateInboundCommand added
+  + function simulateEndpointOf added
+  + function sortSimulateTests added
+  + function simulateLocation added
+  + function simulateHasVerb added
+  + function simulatePluralSymbols added
+  + function simulateFocusModuleLabel added
+  + function writeSimulateText added
+  + function simulateCell added
+
+internal/cli/simulate_test.go (Go)
+  + function TestSimulateRiskVerdicts added
+  + function TestSimulateFileStemPairsSourceWithTest added
+  + function TestCapSimulateAffectedKeepsUncoveredFirst added
+  + function TestCollectSimulateAffectedDropsTestsAndExternals added
+  + function TestCollectSimulateAffectedMarksCrossModule added
+  + function TestSimulateUncoveredSerializesEmptyTestArray added
+  + function TestSimulateRiskThresholdsDidNotMove added
+  + function TestSimulateConfirmedResolutionPartition added
+  + function TestCoveringTestsWithholdsEdgeTierFromNameOnlyRelations added
+  + function TestCoveringTestsWithholdsEdgeTierFromHeuristicRelationTypes added
+  + function TestCoveringTestsKeepsEdgeTierForResolvedRelations added
+  + function TestSimulateCoverageVerdictThreeStates added
+  + function TestSimulateOmittedTotalCountsWhatImpactDidNotList added
+  + function TestCollectSimulateAffectedCarriesImpactMentionLabel added
+  + function coverageIndexWith added
+  + function TestSimulateOnUnresolvableDynamicDispatchFixture added
+  + function focusEntry added
+
+Warnings
+  ! W_INDEX_POLICY_CHANGED .gitignore
+    files that did not change may have entered or left the graph in this range; this delta alone is not sufficient to update an index built from a snapshot
+    an exclusion policy file changed, and it decides index membership for files it does not name
+  ! W_UNSUPPORTED_FILE docs/buildathon/evidence/01-graph-search.txt
+    file skipped; no parser for this file type, so its changes are not analyzed
+    head version has no supported parser
+  ! W_UNSUPPORTED_FILE docs/buildathon/evidence/02-impact-pre-change.txt
+    file skipped; no parser for this file type, so its changes are not analyzed
+    head version has no supported parser
+  ! W_UNSUPPORTED_FILE docs/buildathon/evidence/03-simulate-run.txt
+    file skipped; no parser for this file type, so its changes are not analyzed
+    head version has no supported parser
+  ! W_UNSUPPORTED_FILE docs/buildathon/evidence/04-before-curveball.txt
+    file skipped; no parser for this file type, so its changes are not analyzed
+    head version has no supported parser
+  ! W_UNSUPPORTED_FILE docs/buildathon/evidence/06-curveball-fixture.txt
+    file skipped; no parser for this file type, so its changes are not analyzed
+    head version has no supported parser
